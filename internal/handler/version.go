@@ -16,7 +16,6 @@ import (
 	"github.com/MirrorChyan/resource-backend/internal/logic"
 	"github.com/MirrorChyan/resource-backend/internal/patcher"
 	"github.com/MirrorChyan/resource-backend/internal/pkg/archive"
-	"github.com/MirrorChyan/resource-backend/internal/pkg/rand"
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
 )
@@ -39,9 +38,54 @@ func NewVersionHandler(conf *config.Config, logger *zap.Logger, versionLogic *lo
 }
 
 func (h *VersionHandler) Register(r fiber.Router) {
+	r.Use("/resources/:resID/versions", h.ValidateUploader)
 	r.Post("/resources/:resID/versions", h.Create)
 	r.Use("/resources/:resID/versions/latest", h.ValidateCDK)
 	r.Get("/resources/:resID/versions/latest", h.GetLatest)
+}
+
+type ValidateUploaderResponse struct {
+	Code int    `json:"code"`
+	Msg  string `json:"msg"`
+}
+
+func (h *VersionHandler) ValidateUploader(c *fiber.Ctx) error {
+	token := c.Get("Authorization")
+	if token == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Missing authorization header",
+		})
+	}
+
+	url := fmt.Sprintf("%s?token=%s", h.conf.Auth.UploaderValidationURL, token)
+	resp, err := http.Post(url, "application/json", nil)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Invalid authorization token",
+		})
+	}
+
+	var res ValidateUploaderResponse
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	if res.Code != 0 {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Invalid authorization token",
+		})
+	}
+
+	return c.Next()
 }
 
 func (h *VersionHandler) isValidExtension(filename string) bool {
@@ -72,7 +116,7 @@ type CreateVersionResponse struct {
 }
 
 func (h *VersionHandler) Create(c *fiber.Ctx) error {
-	resID := c.Params("resID")
+	resIDStr := c.Params("resID")
 	name := c.FormValue("name")
 	file, err := c.FormFile("file")
 	if err != nil {
@@ -93,18 +137,18 @@ func (h *VersionHandler) Create(c *fiber.Ctx) error {
 		})
 	}
 
-	tempDirName, err := rand.TempDirName()
+	cwd, err := os.Getwd()
 	if err != nil {
-		h.logger.Error("Failed to generate temp directory name",
+		h.logger.Error("Failed to get current directory",
 			zap.Error(err),
 		)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to generate temp directory name",
+			"error": "Failed to get current directory",
 		})
 	}
-
-	tempDir := fmt.Sprintf("./temp/%s", tempDirName)
-	if err := os.MkdirAll(tempDir, os.ModePerm); err != nil {
+	tempRootDir := filepath.Join(cwd, "temp")
+	tempDir, err := os.MkdirTemp(tempRootDir, "version")
+	if err != nil {
 		h.logger.Error("Failed to create temp directory", zap.Error(err))
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to create temp directory",
@@ -122,7 +166,8 @@ func (h *VersionHandler) Create(c *fiber.Ctx) error {
 		})
 	}
 
-	saveDir := fmt.Sprintf("./storage/%s/%s/resource", resID, name)
+	storageRootDir := filepath.Join(cwd, "storage")
+	saveDir := filepath.Join(storageRootDir, resIDStr, name, "resource")
 	if err := os.MkdirAll(saveDir, os.ModePerm); err != nil {
 		h.logger.Error("Failed to create storage directory",
 			zap.Error(err),
@@ -157,7 +202,7 @@ func (h *VersionHandler) Create(c *fiber.Ctx) error {
 		})
 	}
 
-	resIDInt, err := strconv.Atoi(resID)
+	resID, err := strconv.Atoi(resIDStr)
 	if err != nil {
 		h.logger.Error("Failed to convert resource ID to int",
 			zap.Error(err),
@@ -168,7 +213,7 @@ func (h *VersionHandler) Create(c *fiber.Ctx) error {
 	}
 
 	param := logic.CreateVersionParam{
-		ResourceID:  resIDInt,
+		ResourceID:  resID,
 		Name:        name,
 		ResourceDir: saveDir,
 	}
@@ -210,6 +255,11 @@ func (h *VersionHandler) Create(c *fiber.Ctx) error {
 type ValidateCDKRequest struct {
 	CDK             string `json:"cdk"`
 	SpecificationID string `json:"specificationId"`
+}
+
+type ValidateCDKResponse struct {
+	Code int    `json:"code"`
+	Msg  string `json:"msg"`
 }
 
 func (h *VersionHandler) ValidateCDK(c *fiber.Ctx) error {
@@ -258,6 +308,22 @@ func (h *VersionHandler) ValidateCDK(c *fiber.Ctx) error {
 		})
 	}
 
+	var res ValidateCDKResponse
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		h.logger.Error("Failed to decode response",
+			zap.Error(err),
+		)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to decode response",
+		})
+	}
+
+	if res.Code != 0 {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "CDK validation failed",
+		})
+	}
+
 	return c.Next()
 }
 
@@ -277,7 +343,7 @@ func (h *VersionHandler) GetLatest(c *fiber.Ctx) error {
 		})
 	}
 
-	resIDInt, err := strconv.Atoi(resIDStr)
+	resID, err := strconv.Atoi(resIDStr)
 	if err != nil {
 		h.logger.Error("Failed to convert resource ID to int",
 			zap.Error(err),
@@ -288,7 +354,7 @@ func (h *VersionHandler) GetLatest(c *fiber.Ctx) error {
 	}
 
 	ctx := context.Background()
-	latest, err := h.versionLogic.GetLatest(ctx, resIDInt)
+	latest, err := h.versionLogic.GetLatest(ctx, resID)
 	if err != nil {
 		h.logger.Error("Failed to get latest version",
 			zap.Error(err),
@@ -307,7 +373,7 @@ func (h *VersionHandler) GetLatest(c *fiber.Ctx) error {
 	}
 
 	getCurrentVersionParam := logic.GetVersionByNameParam{
-		ResourceID: resIDInt,
+		ResourceID: resID,
 		Name:       req.CurrentVersion,
 	}
 	current, err := h.versionLogic.GetByName(ctx, getCurrentVersionParam)
@@ -323,8 +389,17 @@ func (h *VersionHandler) GetLatest(c *fiber.Ctx) error {
 
 	changes, err := patcher.CalculateDiff(latest.FileHashes, current.FileHashes)
 
-	patchDir := fmt.Sprintf("./storage/%s/%s/patch", resIDStr, latest.Name)
-
+	cwd, err := os.Getwd()
+	if err != nil {
+		h.logger.Error("Failed to get current directory",
+			zap.Error(err),
+		)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to get current directory",
+		})
+	}
+	storageRootDir := filepath.Join(cwd, "storage")
+	patchDir := filepath.Join(storageRootDir, resIDStr, latest.Name, "patch")
 	patchName := fmt.Sprintf("%s-%s", current.Name, latest.Name)
 	latestStorage, err := h.storageLogic.GetByVersionID(ctx, latest.ID)
 	if err != nil {
