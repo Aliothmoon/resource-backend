@@ -3,11 +3,11 @@ package patcher
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 
 	"github.com/MirrorChyan/resource-backend/internal/pkg/archive"
+	"github.com/MirrorChyan/resource-backend/internal/pkg/fileops"
 )
 
 type ChangeType int
@@ -67,29 +67,15 @@ func CalculateDiff(newVersionFileHashes, oldVersionFileHashes map[string]string)
 	return changes, nil
 }
 
-func copyFile(src, dst string) error {
-	sourceFile, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer sourceFile.Close()
-
-	destFile, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer destFile.Close()
-
-	_, err = io.Copy(destFile, sourceFile)
-	return err
-}
-
 func Generate(patchName, resDir, targetDir string, changes []Change) (string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", err
 	}
 	tempRootDir := filepath.Join(cwd, "temp")
+	if err := os.MkdirAll(tempRootDir, os.ModePerm); err != nil {
+		return "", fmt.Errorf("failed to create temp root directory: %w", err)
+	}
 	tempDir, err := os.MkdirTemp(tempRootDir, "patch")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp directory: %w", err)
@@ -111,7 +97,7 @@ func Generate(patchName, resDir, targetDir string, changes []Change) (string, er
 				return "", fmt.Errorf("failed to create temp file directory: %w", err)
 			}
 
-			if err := copyFile(resPath, tempPath); err != nil {
+			if err := fileops.CopyFile(resPath, tempPath); err != nil {
 				return "", fmt.Errorf("failed to copy file: %w", err)
 			}
 		case Deleted:
