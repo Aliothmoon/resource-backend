@@ -7,38 +7,51 @@
 package wire
 
 import (
-	"github.com/MirrorChyan/resource-backend/internal/config"
+	"github.com/MirrorChyan/resource-backend/internal/cache"
 	"github.com/MirrorChyan/resource-backend/internal/ent"
 	"github.com/MirrorChyan/resource-backend/internal/handler"
 	"github.com/MirrorChyan/resource-backend/internal/logic"
+	"github.com/MirrorChyan/resource-backend/internal/repo"
+	"github.com/MirrorChyan/resource-backend/internal/vercomp"
+	"github.com/go-redsync/redsync/v4"
 	"github.com/google/wire"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
 // Injectors from wire.go:
 
-func NewHandlerSet(conf *config.Config, logger *zap.Logger, db *ent.Client) *HandlerSet {
-	resourceLogic := logic.NewResourceLogic(logger, db)
+func NewHandlerSet(logger *zap.Logger, db *ent.Client, rdb *redis.Client, redsync2 *redsync.Redsync, cg *cache.VersionCacheGroup, verComparator *vercomp.VersionComparator) *HandlerSet {
+	resource := repo.NewResource(db)
+	resourceLogic := logic.NewResourceLogic(logger, resource)
 	resourceHandler := handler.NewResourceHandler(logger, resourceLogic)
-	versionLogic := logic.NewVersionLogic(logger, db)
-	storageLogic := logic.NewStorageLogic(logger, db)
-	versionHandler := handler.NewVersionHandler(conf, logger, versionLogic, storageLogic)
-	wireHandlerSet := newHandlerSet(resourceHandler, versionHandler)
-	return wireHandlerSet
+	repoRepo := repo.NewRepo(db)
+	version := repo.NewVersion(db)
+	storage := repo.NewStorage(db)
+	latestVersion := repo.NewLatestVersion(db)
+	latestVersionLogic := logic.NewLatestVersionLogic(logger, latestVersion, verComparator)
+	storageLogic := logic.NewStorageLogic(logger, storage)
+	versionLogic := logic.NewVersionLogic(logger, repoRepo, version, storage, latestVersionLogic, storageLogic, rdb, redsync2, cg)
+	versionHandler := handler.NewVersionHandler(logger, resourceLogic, versionLogic, verComparator)
+	handlerSet := provideHandlerSet(resourceHandler, versionHandler)
+	return handlerSet
 }
 
 // wire.go:
 
-var logicSet = wire.NewSet(logic.NewResourceLogic, logic.NewVersionLogic, logic.NewStorageLogic)
+var repoProviderSet = wire.NewSet(repo.NewRepo, repo.NewResource, repo.NewVersion, repo.NewLatestVersion, repo.NewStorage)
 
-var handlerSet = wire.NewSet(handler.NewResourceHandler, handler.NewVersionHandler)
+var logicProviderSet = wire.NewSet(logic.NewResourceLogic, logic.NewVersionLogic, logic.NewLatestVersionLogic, logic.NewStorageLogic)
+
+var handlerProviderSet = wire.NewSet(handler.NewResourceHandler, handler.NewVersionHandler, handler.NewMetricsHandler)
 
 type HandlerSet struct {
 	ResourceHandler *handler.ResourceHandler
 	VersionHandler  *handler.VersionHandler
+	MetricsHandler  *handler.MetricsHandler
 }
 
-func newHandlerSet(resourceHandler *handler.ResourceHandler, versionHandler *handler.VersionHandler) *HandlerSet {
+func provideHandlerSet(resourceHandler *handler.ResourceHandler, versionHandler *handler.VersionHandler) *HandlerSet {
 	return &HandlerSet{
 		ResourceHandler: resourceHandler,
 		VersionHandler:  versionHandler,

@@ -16,10 +16,12 @@ type Resource struct {
 // Fields of the Resource.
 func (Resource) Fields() []ent.Field {
 	return []ent.Field{
-		field.String("name"),
+		field.String("id").
+			NotEmpty().
+			Unique(),
+		field.String("name").
+			NotEmpty(),
 		field.String("description"),
-		field.String("latest_version").
-			Optional(),
 		field.Time("created_at").
 			Default(time.Now),
 	}
@@ -29,5 +31,6 @@ func (Resource) Fields() []ent.Field {
 func (Resource) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("versions", Version.Type),
+		edge.To("latest_versions", LatestVersion.Type),
 	}
 }

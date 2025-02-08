@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/MirrorChyan/resource-backend/internal/ent/latestversion"
 	"github.com/MirrorChyan/resource-backend/internal/ent/predicate"
 	"github.com/MirrorChyan/resource-backend/internal/ent/resource"
 	"github.com/MirrorChyan/resource-backend/internal/ent/version"
@@ -20,11 +21,12 @@ import (
 // ResourceQuery is the builder for querying Resource entities.
 type ResourceQuery struct {
 	config
-	ctx          *QueryContext
-	order        []resource.OrderOption
-	inters       []Interceptor
-	predicates   []predicate.Resource
-	withVersions *VersionQuery
+	ctx                *QueryContext
+	order              []resource.OrderOption
+	inters             []Interceptor
+	predicates         []predicate.Resource
+	withVersions       *VersionQuery
+	withLatestVersions *LatestVersionQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -83,6 +85,28 @@ func (rq *ResourceQuery) QueryVersions() *VersionQuery {
 	return query
 }
 
+// QueryLatestVersions chains the current query on the "latest_versions" edge.
+func (rq *ResourceQuery) QueryLatestVersions() *LatestVersionQuery {
+	query := (&LatestVersionClient{config: rq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := rq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := rq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(resource.Table, resource.FieldID, selector),
+			sqlgraph.To(latestversion.Table, latestversion.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, resource.LatestVersionsTable, resource.LatestVersionsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(rq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // First returns the first Resource entity from the query.
 // Returns a *NotFoundError when no Resource was found.
 func (rq *ResourceQuery) First(ctx context.Context) (*Resource, error) {
@@ -107,8 +131,8 @@ func (rq *ResourceQuery) FirstX(ctx context.Context) *Resource {
 
 // FirstID returns the first Resource ID from the query.
 // Returns a *NotFoundError when no Resource ID was found.
-func (rq *ResourceQuery) FirstID(ctx context.Context) (id int, err error) {
-	var ids []int
+func (rq *ResourceQuery) FirstID(ctx context.Context) (id string, err error) {
+	var ids []string
 	if ids, err = rq.Limit(1).IDs(setContextOp(ctx, rq.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
@@ -120,7 +144,7 @@ func (rq *ResourceQuery) FirstID(ctx context.Context) (id int, err error) {
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (rq *ResourceQuery) FirstIDX(ctx context.Context) int {
+func (rq *ResourceQuery) FirstIDX(ctx context.Context) string {
 	id, err := rq.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -158,8 +182,8 @@ func (rq *ResourceQuery) OnlyX(ctx context.Context) *Resource {
 // OnlyID is like Only, but returns the only Resource ID in the query.
 // Returns a *NotSingularError when more than one Resource ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (rq *ResourceQuery) OnlyID(ctx context.Context) (id int, err error) {
-	var ids []int
+func (rq *ResourceQuery) OnlyID(ctx context.Context) (id string, err error) {
+	var ids []string
 	if ids, err = rq.Limit(2).IDs(setContextOp(ctx, rq.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
 	}
@@ -175,7 +199,7 @@ func (rq *ResourceQuery) OnlyID(ctx context.Context) (id int, err error) {
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (rq *ResourceQuery) OnlyIDX(ctx context.Context) int {
+func (rq *ResourceQuery) OnlyIDX(ctx context.Context) string {
 	id, err := rq.OnlyID(ctx)
 	if err != nil {
 		panic(err)
@@ -203,7 +227,7 @@ func (rq *ResourceQuery) AllX(ctx context.Context) []*Resource {
 }
 
 // IDs executes the query and returns a list of Resource IDs.
-func (rq *ResourceQuery) IDs(ctx context.Context) (ids []int, err error) {
+func (rq *ResourceQuery) IDs(ctx context.Context) (ids []string, err error) {
 	if rq.ctx.Unique == nil && rq.path != nil {
 		rq.Unique(true)
 	}
@@ -215,7 +239,7 @@ func (rq *ResourceQuery) IDs(ctx context.Context) (ids []int, err error) {
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (rq *ResourceQuery) IDsX(ctx context.Context) []int {
+func (rq *ResourceQuery) IDsX(ctx context.Context) []string {
 	ids, err := rq.IDs(ctx)
 	if err != nil {
 		panic(err)
@@ -270,12 +294,13 @@ func (rq *ResourceQuery) Clone() *ResourceQuery {
 		return nil
 	}
 	return &ResourceQuery{
-		config:       rq.config,
-		ctx:          rq.ctx.Clone(),
-		order:        append([]resource.OrderOption{}, rq.order...),
-		inters:       append([]Interceptor{}, rq.inters...),
-		predicates:   append([]predicate.Resource{}, rq.predicates...),
-		withVersions: rq.withVersions.Clone(),
+		config:             rq.config,
+		ctx:                rq.ctx.Clone(),
+		order:              append([]resource.OrderOption{}, rq.order...),
+		inters:             append([]Interceptor{}, rq.inters...),
+		predicates:         append([]predicate.Resource{}, rq.predicates...),
+		withVersions:       rq.withVersions.Clone(),
+		withLatestVersions: rq.withLatestVersions.Clone(),
 		// clone intermediate query.
 		sql:  rq.sql.Clone(),
 		path: rq.path,
@@ -290,6 +315,17 @@ func (rq *ResourceQuery) WithVersions(opts ...func(*VersionQuery)) *ResourceQuer
 		opt(query)
 	}
 	rq.withVersions = query
+	return rq
+}
+
+// WithLatestVersions tells the query-builder to eager-load the nodes that are connected to
+// the "latest_versions" edge. The optional arguments are used to configure the query builder of the edge.
+func (rq *ResourceQuery) WithLatestVersions(opts ...func(*LatestVersionQuery)) *ResourceQuery {
+	query := (&LatestVersionClient{config: rq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	rq.withLatestVersions = query
 	return rq
 }
 
@@ -371,8 +407,9 @@ func (rq *ResourceQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Res
 	var (
 		nodes       = []*Resource{}
 		_spec       = rq.querySpec()
-		loadedTypes = [1]bool{
+		loadedTypes = [2]bool{
 			rq.withVersions != nil,
+			rq.withLatestVersions != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -400,12 +437,19 @@ func (rq *ResourceQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Res
 			return nil, err
 		}
 	}
+	if query := rq.withLatestVersions; query != nil {
+		if err := rq.loadLatestVersions(ctx, query, nodes,
+			func(n *Resource) { n.Edges.LatestVersions = []*LatestVersion{} },
+			func(n *Resource, e *LatestVersion) { n.Edges.LatestVersions = append(n.Edges.LatestVersions, e) }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
 }
 
 func (rq *ResourceQuery) loadVersions(ctx context.Context, query *VersionQuery, nodes []*Resource, init func(*Resource), assign func(*Resource, *Version)) error {
 	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[int]*Resource)
+	nodeids := make(map[string]*Resource)
 	for i := range nodes {
 		fks = append(fks, nodes[i].ID)
 		nodeids[nodes[i].ID] = nodes[i]
@@ -434,6 +478,37 @@ func (rq *ResourceQuery) loadVersions(ctx context.Context, query *VersionQuery, 
 	}
 	return nil
 }
+func (rq *ResourceQuery) loadLatestVersions(ctx context.Context, query *LatestVersionQuery, nodes []*Resource, init func(*Resource), assign func(*Resource, *LatestVersion)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[string]*Resource)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	query.withFKs = true
+	query.Where(predicate.LatestVersion(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(resource.LatestVersionsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.resource_latest_versions
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "resource_latest_versions" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "resource_latest_versions" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
 
 func (rq *ResourceQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := rq.querySpec()
@@ -445,7 +520,7 @@ func (rq *ResourceQuery) sqlCount(ctx context.Context) (int, error) {
 }
 
 func (rq *ResourceQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec(resource.Table, resource.Columns, sqlgraph.NewFieldSpec(resource.FieldID, field.TypeInt))
+	_spec := sqlgraph.NewQuerySpec(resource.Table, resource.Columns, sqlgraph.NewFieldSpec(resource.FieldID, field.TypeString))
 	_spec.From = rq.sql
 	if unique := rq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique

@@ -11,6 +11,7 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"github.com/MirrorChyan/resource-backend/internal/ent/latestversion"
 	"github.com/MirrorChyan/resource-backend/internal/ent/predicate"
 	"github.com/MirrorChyan/resource-backend/internal/ent/resource"
 	"github.com/MirrorChyan/resource-backend/internal/ent/storage"
@@ -26,28 +27,537 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeResource = "Resource"
-	TypeStorage  = "Storage"
-	TypeVersion  = "Version"
+	TypeLatestVersion = "LatestVersion"
+	TypeResource      = "Resource"
+	TypeStorage       = "Storage"
+	TypeVersion       = "Version"
 )
 
-// ResourceMutation represents an operation that mutates the Resource nodes in the graph.
-type ResourceMutation struct {
+// LatestVersionMutation represents an operation that mutates the LatestVersion nodes in the graph.
+type LatestVersionMutation struct {
 	config
 	op              Op
 	typ             string
 	id              *int
-	name            *string
-	description     *string
-	latest_version  *string
-	created_at      *time.Time
+	channel         *latestversion.Channel
+	updated_at      *time.Time
 	clearedFields   map[string]struct{}
-	versions        map[int]struct{}
-	removedversions map[int]struct{}
-	clearedversions bool
+	resource        *string
+	clearedresource bool
+	version         *int
+	clearedversion  bool
 	done            bool
-	oldValue        func(context.Context) (*Resource, error)
-	predicates      []predicate.Resource
+	oldValue        func(context.Context) (*LatestVersion, error)
+	predicates      []predicate.LatestVersion
+}
+
+var _ ent.Mutation = (*LatestVersionMutation)(nil)
+
+// latestversionOption allows management of the mutation configuration using functional options.
+type latestversionOption func(*LatestVersionMutation)
+
+// newLatestVersionMutation creates new mutation for the LatestVersion entity.
+func newLatestVersionMutation(c config, op Op, opts ...latestversionOption) *LatestVersionMutation {
+	m := &LatestVersionMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeLatestVersion,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withLatestVersionID sets the ID field of the mutation.
+func withLatestVersionID(id int) latestversionOption {
+	return func(m *LatestVersionMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *LatestVersion
+		)
+		m.oldValue = func(ctx context.Context) (*LatestVersion, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().LatestVersion.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withLatestVersion sets the old LatestVersion of the mutation.
+func withLatestVersion(node *LatestVersion) latestversionOption {
+	return func(m *LatestVersionMutation) {
+		m.oldValue = func(context.Context) (*LatestVersion, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m LatestVersionMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m LatestVersionMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *LatestVersionMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *LatestVersionMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().LatestVersion.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetChannel sets the "channel" field.
+func (m *LatestVersionMutation) SetChannel(l latestversion.Channel) {
+	m.channel = &l
+}
+
+// Channel returns the value of the "channel" field in the mutation.
+func (m *LatestVersionMutation) Channel() (r latestversion.Channel, exists bool) {
+	v := m.channel
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannel returns the old "channel" field's value of the LatestVersion entity.
+// If the LatestVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LatestVersionMutation) OldChannel(ctx context.Context) (v latestversion.Channel, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannel: %w", err)
+	}
+	return oldValue.Channel, nil
+}
+
+// ResetChannel resets all changes to the "channel" field.
+func (m *LatestVersionMutation) ResetChannel() {
+	m.channel = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *LatestVersionMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *LatestVersionMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the LatestVersion entity.
+// If the LatestVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LatestVersionMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *LatestVersionMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetResourceID sets the "resource" edge to the Resource entity by id.
+func (m *LatestVersionMutation) SetResourceID(id string) {
+	m.resource = &id
+}
+
+// ClearResource clears the "resource" edge to the Resource entity.
+func (m *LatestVersionMutation) ClearResource() {
+	m.clearedresource = true
+}
+
+// ResourceCleared reports if the "resource" edge to the Resource entity was cleared.
+func (m *LatestVersionMutation) ResourceCleared() bool {
+	return m.clearedresource
+}
+
+// ResourceID returns the "resource" edge ID in the mutation.
+func (m *LatestVersionMutation) ResourceID() (id string, exists bool) {
+	if m.resource != nil {
+		return *m.resource, true
+	}
+	return
+}
+
+// ResourceIDs returns the "resource" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ResourceID instead. It exists only for internal usage by the builders.
+func (m *LatestVersionMutation) ResourceIDs() (ids []string) {
+	if id := m.resource; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetResource resets all changes to the "resource" edge.
+func (m *LatestVersionMutation) ResetResource() {
+	m.resource = nil
+	m.clearedresource = false
+}
+
+// SetVersionID sets the "version" edge to the Version entity by id.
+func (m *LatestVersionMutation) SetVersionID(id int) {
+	m.version = &id
+}
+
+// ClearVersion clears the "version" edge to the Version entity.
+func (m *LatestVersionMutation) ClearVersion() {
+	m.clearedversion = true
+}
+
+// VersionCleared reports if the "version" edge to the Version entity was cleared.
+func (m *LatestVersionMutation) VersionCleared() bool {
+	return m.clearedversion
+}
+
+// VersionID returns the "version" edge ID in the mutation.
+func (m *LatestVersionMutation) VersionID() (id int, exists bool) {
+	if m.version != nil {
+		return *m.version, true
+	}
+	return
+}
+
+// VersionIDs returns the "version" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// VersionID instead. It exists only for internal usage by the builders.
+func (m *LatestVersionMutation) VersionIDs() (ids []int) {
+	if id := m.version; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetVersion resets all changes to the "version" edge.
+func (m *LatestVersionMutation) ResetVersion() {
+	m.version = nil
+	m.clearedversion = false
+}
+
+// Where appends a list predicates to the LatestVersionMutation builder.
+func (m *LatestVersionMutation) Where(ps ...predicate.LatestVersion) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the LatestVersionMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *LatestVersionMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.LatestVersion, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *LatestVersionMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *LatestVersionMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (LatestVersion).
+func (m *LatestVersionMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *LatestVersionMutation) Fields() []string {
+	fields := make([]string, 0, 2)
+	if m.channel != nil {
+		fields = append(fields, latestversion.FieldChannel)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, latestversion.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *LatestVersionMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case latestversion.FieldChannel:
+		return m.Channel()
+	case latestversion.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *LatestVersionMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case latestversion.FieldChannel:
+		return m.OldChannel(ctx)
+	case latestversion.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown LatestVersion field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LatestVersionMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case latestversion.FieldChannel:
+		v, ok := value.(latestversion.Channel)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannel(v)
+		return nil
+	case latestversion.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LatestVersion field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *LatestVersionMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *LatestVersionMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LatestVersionMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown LatestVersion numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *LatestVersionMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *LatestVersionMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *LatestVersionMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown LatestVersion nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *LatestVersionMutation) ResetField(name string) error {
+	switch name {
+	case latestversion.FieldChannel:
+		m.ResetChannel()
+		return nil
+	case latestversion.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown LatestVersion field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *LatestVersionMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.resource != nil {
+		edges = append(edges, latestversion.EdgeResource)
+	}
+	if m.version != nil {
+		edges = append(edges, latestversion.EdgeVersion)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *LatestVersionMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case latestversion.EdgeResource:
+		if id := m.resource; id != nil {
+			return []ent.Value{*id}
+		}
+	case latestversion.EdgeVersion:
+		if id := m.version; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *LatestVersionMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *LatestVersionMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *LatestVersionMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedresource {
+		edges = append(edges, latestversion.EdgeResource)
+	}
+	if m.clearedversion {
+		edges = append(edges, latestversion.EdgeVersion)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *LatestVersionMutation) EdgeCleared(name string) bool {
+	switch name {
+	case latestversion.EdgeResource:
+		return m.clearedresource
+	case latestversion.EdgeVersion:
+		return m.clearedversion
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *LatestVersionMutation) ClearEdge(name string) error {
+	switch name {
+	case latestversion.EdgeResource:
+		m.ClearResource()
+		return nil
+	case latestversion.EdgeVersion:
+		m.ClearVersion()
+		return nil
+	}
+	return fmt.Errorf("unknown LatestVersion unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *LatestVersionMutation) ResetEdge(name string) error {
+	switch name {
+	case latestversion.EdgeResource:
+		m.ResetResource()
+		return nil
+	case latestversion.EdgeVersion:
+		m.ResetVersion()
+		return nil
+	}
+	return fmt.Errorf("unknown LatestVersion edge %s", name)
+}
+
+// ResourceMutation represents an operation that mutates the Resource nodes in the graph.
+type ResourceMutation struct {
+	config
+	op                     Op
+	typ                    string
+	id                     *string
+	name                   *string
+	description            *string
+	created_at             *time.Time
+	clearedFields          map[string]struct{}
+	versions               map[int]struct{}
+	removedversions        map[int]struct{}
+	clearedversions        bool
+	latest_versions        map[int]struct{}
+	removedlatest_versions map[int]struct{}
+	clearedlatest_versions bool
+	done                   bool
+	oldValue               func(context.Context) (*Resource, error)
+	predicates             []predicate.Resource
 }
 
 var _ ent.Mutation = (*ResourceMutation)(nil)
@@ -70,7 +580,7 @@ func newResourceMutation(c config, op Op, opts ...resourceOption) *ResourceMutat
 }
 
 // withResourceID sets the ID field of the mutation.
-func withResourceID(id int) resourceOption {
+func withResourceID(id string) resourceOption {
 	return func(m *ResourceMutation) {
 		var (
 			err   error
@@ -120,9 +630,15 @@ func (m ResourceMutation) Tx() (*Tx, error) {
 	return tx, nil
 }
 
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of Resource entities.
+func (m *ResourceMutation) SetID(id string) {
+	m.id = &id
+}
+
 // ID returns the ID value in the mutation. Note that the ID is only available
 // if it was provided to the builder or after it was returned from the database.
-func (m *ResourceMutation) ID() (id int, exists bool) {
+func (m *ResourceMutation) ID() (id string, exists bool) {
 	if m.id == nil {
 		return
 	}
@@ -133,12 +649,12 @@ func (m *ResourceMutation) ID() (id int, exists bool) {
 // That means, if the mutation is applied within a transaction with an isolation level such
 // as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
 // or updated by the mutation.
-func (m *ResourceMutation) IDs(ctx context.Context) ([]int, error) {
+func (m *ResourceMutation) IDs(ctx context.Context) ([]string, error) {
 	switch {
 	case m.op.Is(OpUpdateOne | OpDeleteOne):
 		id, exists := m.ID()
 		if exists {
-			return []int{id}, nil
+			return []string{id}, nil
 		}
 		fallthrough
 	case m.op.Is(OpUpdate | OpDelete):
@@ -218,55 +734,6 @@ func (m *ResourceMutation) OldDescription(ctx context.Context) (v string, err er
 // ResetDescription resets all changes to the "description" field.
 func (m *ResourceMutation) ResetDescription() {
 	m.description = nil
-}
-
-// SetLatestVersion sets the "latest_version" field.
-func (m *ResourceMutation) SetLatestVersion(s string) {
-	m.latest_version = &s
-}
-
-// LatestVersion returns the value of the "latest_version" field in the mutation.
-func (m *ResourceMutation) LatestVersion() (r string, exists bool) {
-	v := m.latest_version
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldLatestVersion returns the old "latest_version" field's value of the Resource entity.
-// If the Resource object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *ResourceMutation) OldLatestVersion(ctx context.Context) (v string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldLatestVersion is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldLatestVersion requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldLatestVersion: %w", err)
-	}
-	return oldValue.LatestVersion, nil
-}
-
-// ClearLatestVersion clears the value of the "latest_version" field.
-func (m *ResourceMutation) ClearLatestVersion() {
-	m.latest_version = nil
-	m.clearedFields[resource.FieldLatestVersion] = struct{}{}
-}
-
-// LatestVersionCleared returns if the "latest_version" field was cleared in this mutation.
-func (m *ResourceMutation) LatestVersionCleared() bool {
-	_, ok := m.clearedFields[resource.FieldLatestVersion]
-	return ok
-}
-
-// ResetLatestVersion resets all changes to the "latest_version" field.
-func (m *ResourceMutation) ResetLatestVersion() {
-	m.latest_version = nil
-	delete(m.clearedFields, resource.FieldLatestVersion)
 }
 
 // SetCreatedAt sets the "created_at" field.
@@ -359,6 +826,60 @@ func (m *ResourceMutation) ResetVersions() {
 	m.removedversions = nil
 }
 
+// AddLatestVersionIDs adds the "latest_versions" edge to the LatestVersion entity by ids.
+func (m *ResourceMutation) AddLatestVersionIDs(ids ...int) {
+	if m.latest_versions == nil {
+		m.latest_versions = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.latest_versions[ids[i]] = struct{}{}
+	}
+}
+
+// ClearLatestVersions clears the "latest_versions" edge to the LatestVersion entity.
+func (m *ResourceMutation) ClearLatestVersions() {
+	m.clearedlatest_versions = true
+}
+
+// LatestVersionsCleared reports if the "latest_versions" edge to the LatestVersion entity was cleared.
+func (m *ResourceMutation) LatestVersionsCleared() bool {
+	return m.clearedlatest_versions
+}
+
+// RemoveLatestVersionIDs removes the "latest_versions" edge to the LatestVersion entity by IDs.
+func (m *ResourceMutation) RemoveLatestVersionIDs(ids ...int) {
+	if m.removedlatest_versions == nil {
+		m.removedlatest_versions = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.latest_versions, ids[i])
+		m.removedlatest_versions[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedLatestVersions returns the removed IDs of the "latest_versions" edge to the LatestVersion entity.
+func (m *ResourceMutation) RemovedLatestVersionsIDs() (ids []int) {
+	for id := range m.removedlatest_versions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// LatestVersionsIDs returns the "latest_versions" edge IDs in the mutation.
+func (m *ResourceMutation) LatestVersionsIDs() (ids []int) {
+	for id := range m.latest_versions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetLatestVersions resets all changes to the "latest_versions" edge.
+func (m *ResourceMutation) ResetLatestVersions() {
+	m.latest_versions = nil
+	m.clearedlatest_versions = false
+	m.removedlatest_versions = nil
+}
+
 // Where appends a list predicates to the ResourceMutation builder.
 func (m *ResourceMutation) Where(ps ...predicate.Resource) {
 	m.predicates = append(m.predicates, ps...)
@@ -393,15 +914,12 @@ func (m *ResourceMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ResourceMutation) Fields() []string {
-	fields := make([]string, 0, 4)
+	fields := make([]string, 0, 3)
 	if m.name != nil {
 		fields = append(fields, resource.FieldName)
 	}
 	if m.description != nil {
 		fields = append(fields, resource.FieldDescription)
-	}
-	if m.latest_version != nil {
-		fields = append(fields, resource.FieldLatestVersion)
 	}
 	if m.created_at != nil {
 		fields = append(fields, resource.FieldCreatedAt)
@@ -418,8 +936,6 @@ func (m *ResourceMutation) Field(name string) (ent.Value, bool) {
 		return m.Name()
 	case resource.FieldDescription:
 		return m.Description()
-	case resource.FieldLatestVersion:
-		return m.LatestVersion()
 	case resource.FieldCreatedAt:
 		return m.CreatedAt()
 	}
@@ -435,8 +951,6 @@ func (m *ResourceMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldName(ctx)
 	case resource.FieldDescription:
 		return m.OldDescription(ctx)
-	case resource.FieldLatestVersion:
-		return m.OldLatestVersion(ctx)
 	case resource.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	}
@@ -461,13 +975,6 @@ func (m *ResourceMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDescription(v)
-		return nil
-	case resource.FieldLatestVersion:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetLatestVersion(v)
 		return nil
 	case resource.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -505,11 +1012,7 @@ func (m *ResourceMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *ResourceMutation) ClearedFields() []string {
-	var fields []string
-	if m.FieldCleared(resource.FieldLatestVersion) {
-		fields = append(fields, resource.FieldLatestVersion)
-	}
-	return fields
+	return nil
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -522,11 +1025,6 @@ func (m *ResourceMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *ResourceMutation) ClearField(name string) error {
-	switch name {
-	case resource.FieldLatestVersion:
-		m.ClearLatestVersion()
-		return nil
-	}
 	return fmt.Errorf("unknown Resource nullable field %s", name)
 }
 
@@ -540,9 +1038,6 @@ func (m *ResourceMutation) ResetField(name string) error {
 	case resource.FieldDescription:
 		m.ResetDescription()
 		return nil
-	case resource.FieldLatestVersion:
-		m.ResetLatestVersion()
-		return nil
 	case resource.FieldCreatedAt:
 		m.ResetCreatedAt()
 		return nil
@@ -552,9 +1047,12 @@ func (m *ResourceMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ResourceMutation) AddedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.versions != nil {
 		edges = append(edges, resource.EdgeVersions)
+	}
+	if m.latest_versions != nil {
+		edges = append(edges, resource.EdgeLatestVersions)
 	}
 	return edges
 }
@@ -569,15 +1067,24 @@ func (m *ResourceMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case resource.EdgeLatestVersions:
+		ids := make([]ent.Value, 0, len(m.latest_versions))
+		for id := range m.latest_versions {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ResourceMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.removedversions != nil {
 		edges = append(edges, resource.EdgeVersions)
+	}
+	if m.removedlatest_versions != nil {
+		edges = append(edges, resource.EdgeLatestVersions)
 	}
 	return edges
 }
@@ -592,15 +1099,24 @@ func (m *ResourceMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case resource.EdgeLatestVersions:
+		ids := make([]ent.Value, 0, len(m.removedlatest_versions))
+		for id := range m.removedlatest_versions {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ResourceMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.clearedversions {
 		edges = append(edges, resource.EdgeVersions)
+	}
+	if m.clearedlatest_versions {
+		edges = append(edges, resource.EdgeLatestVersions)
 	}
 	return edges
 }
@@ -611,6 +1127,8 @@ func (m *ResourceMutation) EdgeCleared(name string) bool {
 	switch name {
 	case resource.EdgeVersions:
 		return m.clearedversions
+	case resource.EdgeLatestVersions:
+		return m.clearedlatest_versions
 	}
 	return false
 }
@@ -630,6 +1148,9 @@ func (m *ResourceMutation) ResetEdge(name string) error {
 	case resource.EdgeVersions:
 		m.ResetVersions()
 		return nil
+	case resource.EdgeLatestVersions:
+		m.ResetLatestVersions()
+		return nil
 	}
 	return fmt.Errorf("unknown Resource edge %s", name)
 }
@@ -637,17 +1158,25 @@ func (m *ResourceMutation) ResetEdge(name string) error {
 // StorageMutation represents an operation that mutates the Storage nodes in the graph.
 type StorageMutation struct {
 	config
-	op             Op
-	typ            string
-	id             *int
-	directory      *string
-	created_at     *time.Time
-	clearedFields  map[string]struct{}
-	version        *int
-	clearedversion bool
-	done           bool
-	oldValue       func(context.Context) (*Storage, error)
-	predicates     []predicate.Storage
+	op                  Op
+	typ                 string
+	id                  *int
+	update_type         *storage.UpdateType
+	os                  *string
+	arch                *string
+	package_path        *string
+	package_hash_sha256 *string
+	resource_path       *string
+	file_hashes         *map[string]string
+	created_at          *time.Time
+	clearedFields       map[string]struct{}
+	version             *int
+	clearedversion      bool
+	old_version         *int
+	clearedold_version  bool
+	done                bool
+	oldValue            func(context.Context) (*Storage, error)
+	predicates          []predicate.Storage
 }
 
 var _ ent.Mutation = (*StorageMutation)(nil)
@@ -748,40 +1277,308 @@ func (m *StorageMutation) IDs(ctx context.Context) ([]int, error) {
 	}
 }
 
-// SetDirectory sets the "directory" field.
-func (m *StorageMutation) SetDirectory(s string) {
-	m.directory = &s
+// SetUpdateType sets the "update_type" field.
+func (m *StorageMutation) SetUpdateType(st storage.UpdateType) {
+	m.update_type = &st
 }
 
-// Directory returns the value of the "directory" field in the mutation.
-func (m *StorageMutation) Directory() (r string, exists bool) {
-	v := m.directory
+// UpdateType returns the value of the "update_type" field in the mutation.
+func (m *StorageMutation) UpdateType() (r storage.UpdateType, exists bool) {
+	v := m.update_type
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldDirectory returns the old "directory" field's value of the Storage entity.
+// OldUpdateType returns the old "update_type" field's value of the Storage entity.
 // If the Storage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *StorageMutation) OldDirectory(ctx context.Context) (v string, err error) {
+func (m *StorageMutation) OldUpdateType(ctx context.Context) (v storage.UpdateType, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldDirectory is only allowed on UpdateOne operations")
+		return v, errors.New("OldUpdateType is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldDirectory requires an ID field in the mutation")
+		return v, errors.New("OldUpdateType requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldDirectory: %w", err)
+		return v, fmt.Errorf("querying old value for OldUpdateType: %w", err)
 	}
-	return oldValue.Directory, nil
+	return oldValue.UpdateType, nil
 }
 
-// ResetDirectory resets all changes to the "directory" field.
-func (m *StorageMutation) ResetDirectory() {
-	m.directory = nil
+// ResetUpdateType resets all changes to the "update_type" field.
+func (m *StorageMutation) ResetUpdateType() {
+	m.update_type = nil
+}
+
+// SetOs sets the "os" field.
+func (m *StorageMutation) SetOs(s string) {
+	m.os = &s
+}
+
+// Os returns the value of the "os" field in the mutation.
+func (m *StorageMutation) Os() (r string, exists bool) {
+	v := m.os
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOs returns the old "os" field's value of the Storage entity.
+// If the Storage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StorageMutation) OldOs(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOs is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOs requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOs: %w", err)
+	}
+	return oldValue.Os, nil
+}
+
+// ResetOs resets all changes to the "os" field.
+func (m *StorageMutation) ResetOs() {
+	m.os = nil
+}
+
+// SetArch sets the "arch" field.
+func (m *StorageMutation) SetArch(s string) {
+	m.arch = &s
+}
+
+// Arch returns the value of the "arch" field in the mutation.
+func (m *StorageMutation) Arch() (r string, exists bool) {
+	v := m.arch
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldArch returns the old "arch" field's value of the Storage entity.
+// If the Storage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StorageMutation) OldArch(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldArch is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldArch requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldArch: %w", err)
+	}
+	return oldValue.Arch, nil
+}
+
+// ResetArch resets all changes to the "arch" field.
+func (m *StorageMutation) ResetArch() {
+	m.arch = nil
+}
+
+// SetPackagePath sets the "package_path" field.
+func (m *StorageMutation) SetPackagePath(s string) {
+	m.package_path = &s
+}
+
+// PackagePath returns the value of the "package_path" field in the mutation.
+func (m *StorageMutation) PackagePath() (r string, exists bool) {
+	v := m.package_path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPackagePath returns the old "package_path" field's value of the Storage entity.
+// If the Storage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StorageMutation) OldPackagePath(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPackagePath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPackagePath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPackagePath: %w", err)
+	}
+	return oldValue.PackagePath, nil
+}
+
+// ClearPackagePath clears the value of the "package_path" field.
+func (m *StorageMutation) ClearPackagePath() {
+	m.package_path = nil
+	m.clearedFields[storage.FieldPackagePath] = struct{}{}
+}
+
+// PackagePathCleared returns if the "package_path" field was cleared in this mutation.
+func (m *StorageMutation) PackagePathCleared() bool {
+	_, ok := m.clearedFields[storage.FieldPackagePath]
+	return ok
+}
+
+// ResetPackagePath resets all changes to the "package_path" field.
+func (m *StorageMutation) ResetPackagePath() {
+	m.package_path = nil
+	delete(m.clearedFields, storage.FieldPackagePath)
+}
+
+// SetPackageHashSha256 sets the "package_hash_sha256" field.
+func (m *StorageMutation) SetPackageHashSha256(s string) {
+	m.package_hash_sha256 = &s
+}
+
+// PackageHashSha256 returns the value of the "package_hash_sha256" field in the mutation.
+func (m *StorageMutation) PackageHashSha256() (r string, exists bool) {
+	v := m.package_hash_sha256
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPackageHashSha256 returns the old "package_hash_sha256" field's value of the Storage entity.
+// If the Storage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StorageMutation) OldPackageHashSha256(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPackageHashSha256 is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPackageHashSha256 requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPackageHashSha256: %w", err)
+	}
+	return oldValue.PackageHashSha256, nil
+}
+
+// ClearPackageHashSha256 clears the value of the "package_hash_sha256" field.
+func (m *StorageMutation) ClearPackageHashSha256() {
+	m.package_hash_sha256 = nil
+	m.clearedFields[storage.FieldPackageHashSha256] = struct{}{}
+}
+
+// PackageHashSha256Cleared returns if the "package_hash_sha256" field was cleared in this mutation.
+func (m *StorageMutation) PackageHashSha256Cleared() bool {
+	_, ok := m.clearedFields[storage.FieldPackageHashSha256]
+	return ok
+}
+
+// ResetPackageHashSha256 resets all changes to the "package_hash_sha256" field.
+func (m *StorageMutation) ResetPackageHashSha256() {
+	m.package_hash_sha256 = nil
+	delete(m.clearedFields, storage.FieldPackageHashSha256)
+}
+
+// SetResourcePath sets the "resource_path" field.
+func (m *StorageMutation) SetResourcePath(s string) {
+	m.resource_path = &s
+}
+
+// ResourcePath returns the value of the "resource_path" field in the mutation.
+func (m *StorageMutation) ResourcePath() (r string, exists bool) {
+	v := m.resource_path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResourcePath returns the old "resource_path" field's value of the Storage entity.
+// If the Storage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StorageMutation) OldResourcePath(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResourcePath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResourcePath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResourcePath: %w", err)
+	}
+	return oldValue.ResourcePath, nil
+}
+
+// ClearResourcePath clears the value of the "resource_path" field.
+func (m *StorageMutation) ClearResourcePath() {
+	m.resource_path = nil
+	m.clearedFields[storage.FieldResourcePath] = struct{}{}
+}
+
+// ResourcePathCleared returns if the "resource_path" field was cleared in this mutation.
+func (m *StorageMutation) ResourcePathCleared() bool {
+	_, ok := m.clearedFields[storage.FieldResourcePath]
+	return ok
+}
+
+// ResetResourcePath resets all changes to the "resource_path" field.
+func (m *StorageMutation) ResetResourcePath() {
+	m.resource_path = nil
+	delete(m.clearedFields, storage.FieldResourcePath)
+}
+
+// SetFileHashes sets the "file_hashes" field.
+func (m *StorageMutation) SetFileHashes(value map[string]string) {
+	m.file_hashes = &value
+}
+
+// FileHashes returns the value of the "file_hashes" field in the mutation.
+func (m *StorageMutation) FileHashes() (r map[string]string, exists bool) {
+	v := m.file_hashes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFileHashes returns the old "file_hashes" field's value of the Storage entity.
+// If the Storage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StorageMutation) OldFileHashes(ctx context.Context) (v map[string]string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFileHashes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFileHashes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFileHashes: %w", err)
+	}
+	return oldValue.FileHashes, nil
+}
+
+// ClearFileHashes clears the value of the "file_hashes" field.
+func (m *StorageMutation) ClearFileHashes() {
+	m.file_hashes = nil
+	m.clearedFields[storage.FieldFileHashes] = struct{}{}
+}
+
+// FileHashesCleared returns if the "file_hashes" field was cleared in this mutation.
+func (m *StorageMutation) FileHashesCleared() bool {
+	_, ok := m.clearedFields[storage.FieldFileHashes]
+	return ok
+}
+
+// ResetFileHashes resets all changes to the "file_hashes" field.
+func (m *StorageMutation) ResetFileHashes() {
+	m.file_hashes = nil
+	delete(m.clearedFields, storage.FieldFileHashes)
 }
 
 // SetCreatedAt sets the "created_at" field.
@@ -859,6 +1656,45 @@ func (m *StorageMutation) ResetVersion() {
 	m.clearedversion = false
 }
 
+// SetOldVersionID sets the "old_version" edge to the Version entity by id.
+func (m *StorageMutation) SetOldVersionID(id int) {
+	m.old_version = &id
+}
+
+// ClearOldVersion clears the "old_version" edge to the Version entity.
+func (m *StorageMutation) ClearOldVersion() {
+	m.clearedold_version = true
+}
+
+// OldVersionCleared reports if the "old_version" edge to the Version entity was cleared.
+func (m *StorageMutation) OldVersionCleared() bool {
+	return m.clearedold_version
+}
+
+// OldVersionID returns the "old_version" edge ID in the mutation.
+func (m *StorageMutation) OldVersionID() (id int, exists bool) {
+	if m.old_version != nil {
+		return *m.old_version, true
+	}
+	return
+}
+
+// OldVersionIDs returns the "old_version" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// OldVersionID instead. It exists only for internal usage by the builders.
+func (m *StorageMutation) OldVersionIDs() (ids []int) {
+	if id := m.old_version; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetOldVersion resets all changes to the "old_version" edge.
+func (m *StorageMutation) ResetOldVersion() {
+	m.old_version = nil
+	m.clearedold_version = false
+}
+
 // Where appends a list predicates to the StorageMutation builder.
 func (m *StorageMutation) Where(ps ...predicate.Storage) {
 	m.predicates = append(m.predicates, ps...)
@@ -893,9 +1729,27 @@ func (m *StorageMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *StorageMutation) Fields() []string {
-	fields := make([]string, 0, 2)
-	if m.directory != nil {
-		fields = append(fields, storage.FieldDirectory)
+	fields := make([]string, 0, 8)
+	if m.update_type != nil {
+		fields = append(fields, storage.FieldUpdateType)
+	}
+	if m.os != nil {
+		fields = append(fields, storage.FieldOs)
+	}
+	if m.arch != nil {
+		fields = append(fields, storage.FieldArch)
+	}
+	if m.package_path != nil {
+		fields = append(fields, storage.FieldPackagePath)
+	}
+	if m.package_hash_sha256 != nil {
+		fields = append(fields, storage.FieldPackageHashSha256)
+	}
+	if m.resource_path != nil {
+		fields = append(fields, storage.FieldResourcePath)
+	}
+	if m.file_hashes != nil {
+		fields = append(fields, storage.FieldFileHashes)
 	}
 	if m.created_at != nil {
 		fields = append(fields, storage.FieldCreatedAt)
@@ -908,8 +1762,20 @@ func (m *StorageMutation) Fields() []string {
 // schema.
 func (m *StorageMutation) Field(name string) (ent.Value, bool) {
 	switch name {
-	case storage.FieldDirectory:
-		return m.Directory()
+	case storage.FieldUpdateType:
+		return m.UpdateType()
+	case storage.FieldOs:
+		return m.Os()
+	case storage.FieldArch:
+		return m.Arch()
+	case storage.FieldPackagePath:
+		return m.PackagePath()
+	case storage.FieldPackageHashSha256:
+		return m.PackageHashSha256()
+	case storage.FieldResourcePath:
+		return m.ResourcePath()
+	case storage.FieldFileHashes:
+		return m.FileHashes()
 	case storage.FieldCreatedAt:
 		return m.CreatedAt()
 	}
@@ -921,8 +1787,20 @@ func (m *StorageMutation) Field(name string) (ent.Value, bool) {
 // database failed.
 func (m *StorageMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
-	case storage.FieldDirectory:
-		return m.OldDirectory(ctx)
+	case storage.FieldUpdateType:
+		return m.OldUpdateType(ctx)
+	case storage.FieldOs:
+		return m.OldOs(ctx)
+	case storage.FieldArch:
+		return m.OldArch(ctx)
+	case storage.FieldPackagePath:
+		return m.OldPackagePath(ctx)
+	case storage.FieldPackageHashSha256:
+		return m.OldPackageHashSha256(ctx)
+	case storage.FieldResourcePath:
+		return m.OldResourcePath(ctx)
+	case storage.FieldFileHashes:
+		return m.OldFileHashes(ctx)
 	case storage.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	}
@@ -934,12 +1812,54 @@ func (m *StorageMutation) OldField(ctx context.Context, name string) (ent.Value,
 // type.
 func (m *StorageMutation) SetField(name string, value ent.Value) error {
 	switch name {
-	case storage.FieldDirectory:
+	case storage.FieldUpdateType:
+		v, ok := value.(storage.UpdateType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdateType(v)
+		return nil
+	case storage.FieldOs:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetDirectory(v)
+		m.SetOs(v)
+		return nil
+	case storage.FieldArch:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetArch(v)
+		return nil
+	case storage.FieldPackagePath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPackagePath(v)
+		return nil
+	case storage.FieldPackageHashSha256:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPackageHashSha256(v)
+		return nil
+	case storage.FieldResourcePath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResourcePath(v)
+		return nil
+	case storage.FieldFileHashes:
+		v, ok := value.(map[string]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFileHashes(v)
 		return nil
 	case storage.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -977,7 +1897,20 @@ func (m *StorageMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *StorageMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(storage.FieldPackagePath) {
+		fields = append(fields, storage.FieldPackagePath)
+	}
+	if m.FieldCleared(storage.FieldPackageHashSha256) {
+		fields = append(fields, storage.FieldPackageHashSha256)
+	}
+	if m.FieldCleared(storage.FieldResourcePath) {
+		fields = append(fields, storage.FieldResourcePath)
+	}
+	if m.FieldCleared(storage.FieldFileHashes) {
+		fields = append(fields, storage.FieldFileHashes)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -990,6 +1923,20 @@ func (m *StorageMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *StorageMutation) ClearField(name string) error {
+	switch name {
+	case storage.FieldPackagePath:
+		m.ClearPackagePath()
+		return nil
+	case storage.FieldPackageHashSha256:
+		m.ClearPackageHashSha256()
+		return nil
+	case storage.FieldResourcePath:
+		m.ClearResourcePath()
+		return nil
+	case storage.FieldFileHashes:
+		m.ClearFileHashes()
+		return nil
+	}
 	return fmt.Errorf("unknown Storage nullable field %s", name)
 }
 
@@ -997,8 +1944,26 @@ func (m *StorageMutation) ClearField(name string) error {
 // It returns an error if the field is not defined in the schema.
 func (m *StorageMutation) ResetField(name string) error {
 	switch name {
-	case storage.FieldDirectory:
-		m.ResetDirectory()
+	case storage.FieldUpdateType:
+		m.ResetUpdateType()
+		return nil
+	case storage.FieldOs:
+		m.ResetOs()
+		return nil
+	case storage.FieldArch:
+		m.ResetArch()
+		return nil
+	case storage.FieldPackagePath:
+		m.ResetPackagePath()
+		return nil
+	case storage.FieldPackageHashSha256:
+		m.ResetPackageHashSha256()
+		return nil
+	case storage.FieldResourcePath:
+		m.ResetResourcePath()
+		return nil
+	case storage.FieldFileHashes:
+		m.ResetFileHashes()
 		return nil
 	case storage.FieldCreatedAt:
 		m.ResetCreatedAt()
@@ -1009,9 +1974,12 @@ func (m *StorageMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *StorageMutation) AddedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.version != nil {
 		edges = append(edges, storage.EdgeVersion)
+	}
+	if m.old_version != nil {
+		edges = append(edges, storage.EdgeOldVersion)
 	}
 	return edges
 }
@@ -1024,13 +1992,17 @@ func (m *StorageMutation) AddedIDs(name string) []ent.Value {
 		if id := m.version; id != nil {
 			return []ent.Value{*id}
 		}
+	case storage.EdgeOldVersion:
+		if id := m.old_version; id != nil {
+			return []ent.Value{*id}
+		}
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *StorageMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	return edges
 }
 
@@ -1042,9 +2014,12 @@ func (m *StorageMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *StorageMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.clearedversion {
 		edges = append(edges, storage.EdgeVersion)
+	}
+	if m.clearedold_version {
+		edges = append(edges, storage.EdgeOldVersion)
 	}
 	return edges
 }
@@ -1055,6 +2030,8 @@ func (m *StorageMutation) EdgeCleared(name string) bool {
 	switch name {
 	case storage.EdgeVersion:
 		return m.clearedversion
+	case storage.EdgeOldVersion:
+		return m.clearedold_version
 	}
 	return false
 }
@@ -1065,6 +2042,9 @@ func (m *StorageMutation) ClearEdge(name string) error {
 	switch name {
 	case storage.EdgeVersion:
 		m.ClearVersion()
+		return nil
+	case storage.EdgeOldVersion:
+		m.ClearOldVersion()
 		return nil
 	}
 	return fmt.Errorf("unknown Storage unique edge %s", name)
@@ -1077,6 +2057,9 @@ func (m *StorageMutation) ResetEdge(name string) error {
 	case storage.EdgeVersion:
 		m.ResetVersion()
 		return nil
+	case storage.EdgeOldVersion:
+		m.ResetOldVersion()
+		return nil
 	}
 	return fmt.Errorf("unknown Storage edge %s", name)
 }
@@ -1087,16 +2070,18 @@ type VersionMutation struct {
 	op              Op
 	typ             string
 	id              *int
+	channel         *version.Channel
 	name            *string
 	number          *uint64
 	addnumber       *int64
-	file_hashes     *map[string]string
+	release_note    *string
+	custom_data     *string
 	created_at      *time.Time
 	clearedFields   map[string]struct{}
-	storage         map[int]struct{}
-	removedstorage  map[int]struct{}
-	clearedstorage  bool
-	resource        *int
+	storages        map[int]struct{}
+	removedstorages map[int]struct{}
+	clearedstorages bool
+	resource        *string
 	clearedresource bool
 	done            bool
 	oldValue        func(context.Context) (*Version, error)
@@ -1201,6 +2186,42 @@ func (m *VersionMutation) IDs(ctx context.Context) ([]int, error) {
 	}
 }
 
+// SetChannel sets the "channel" field.
+func (m *VersionMutation) SetChannel(v version.Channel) {
+	m.channel = &v
+}
+
+// Channel returns the value of the "channel" field in the mutation.
+func (m *VersionMutation) Channel() (r version.Channel, exists bool) {
+	v := m.channel
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannel returns the old "channel" field's value of the Version entity.
+// If the Version object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VersionMutation) OldChannel(ctx context.Context) (v version.Channel, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannel: %w", err)
+	}
+	return oldValue.Channel, nil
+}
+
+// ResetChannel resets all changes to the "channel" field.
+func (m *VersionMutation) ResetChannel() {
+	m.channel = nil
+}
+
 // SetName sets the "name" field.
 func (m *VersionMutation) SetName(s string) {
 	m.name = &s
@@ -1293,53 +2314,76 @@ func (m *VersionMutation) ResetNumber() {
 	m.addnumber = nil
 }
 
-// SetFileHashes sets the "file_hashes" field.
-func (m *VersionMutation) SetFileHashes(value map[string]string) {
-	m.file_hashes = &value
+// SetReleaseNote sets the "release_note" field.
+func (m *VersionMutation) SetReleaseNote(s string) {
+	m.release_note = &s
 }
 
-// FileHashes returns the value of the "file_hashes" field in the mutation.
-func (m *VersionMutation) FileHashes() (r map[string]string, exists bool) {
-	v := m.file_hashes
+// ReleaseNote returns the value of the "release_note" field in the mutation.
+func (m *VersionMutation) ReleaseNote() (r string, exists bool) {
+	v := m.release_note
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldFileHashes returns the old "file_hashes" field's value of the Version entity.
+// OldReleaseNote returns the old "release_note" field's value of the Version entity.
 // If the Version object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *VersionMutation) OldFileHashes(ctx context.Context) (v map[string]string, err error) {
+func (m *VersionMutation) OldReleaseNote(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldFileHashes is only allowed on UpdateOne operations")
+		return v, errors.New("OldReleaseNote is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldFileHashes requires an ID field in the mutation")
+		return v, errors.New("OldReleaseNote requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldFileHashes: %w", err)
+		return v, fmt.Errorf("querying old value for OldReleaseNote: %w", err)
 	}
-	return oldValue.FileHashes, nil
+	return oldValue.ReleaseNote, nil
 }
 
-// ClearFileHashes clears the value of the "file_hashes" field.
-func (m *VersionMutation) ClearFileHashes() {
-	m.file_hashes = nil
-	m.clearedFields[version.FieldFileHashes] = struct{}{}
+// ResetReleaseNote resets all changes to the "release_note" field.
+func (m *VersionMutation) ResetReleaseNote() {
+	m.release_note = nil
 }
 
-// FileHashesCleared returns if the "file_hashes" field was cleared in this mutation.
-func (m *VersionMutation) FileHashesCleared() bool {
-	_, ok := m.clearedFields[version.FieldFileHashes]
-	return ok
+// SetCustomData sets the "custom_data" field.
+func (m *VersionMutation) SetCustomData(s string) {
+	m.custom_data = &s
 }
 
-// ResetFileHashes resets all changes to the "file_hashes" field.
-func (m *VersionMutation) ResetFileHashes() {
-	m.file_hashes = nil
-	delete(m.clearedFields, version.FieldFileHashes)
+// CustomData returns the value of the "custom_data" field in the mutation.
+func (m *VersionMutation) CustomData() (r string, exists bool) {
+	v := m.custom_data
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCustomData returns the old "custom_data" field's value of the Version entity.
+// If the Version object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VersionMutation) OldCustomData(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCustomData is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCustomData requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCustomData: %w", err)
+	}
+	return oldValue.CustomData, nil
+}
+
+// ResetCustomData resets all changes to the "custom_data" field.
+func (m *VersionMutation) ResetCustomData() {
+	m.custom_data = nil
 }
 
 // SetCreatedAt sets the "created_at" field.
@@ -1378,62 +2422,62 @@ func (m *VersionMutation) ResetCreatedAt() {
 	m.created_at = nil
 }
 
-// AddStorageIDs adds the "storage" edge to the Storage entity by ids.
+// AddStorageIDs adds the "storages" edge to the Storage entity by ids.
 func (m *VersionMutation) AddStorageIDs(ids ...int) {
-	if m.storage == nil {
-		m.storage = make(map[int]struct{})
+	if m.storages == nil {
+		m.storages = make(map[int]struct{})
 	}
 	for i := range ids {
-		m.storage[ids[i]] = struct{}{}
+		m.storages[ids[i]] = struct{}{}
 	}
 }
 
-// ClearStorage clears the "storage" edge to the Storage entity.
-func (m *VersionMutation) ClearStorage() {
-	m.clearedstorage = true
+// ClearStorages clears the "storages" edge to the Storage entity.
+func (m *VersionMutation) ClearStorages() {
+	m.clearedstorages = true
 }
 
-// StorageCleared reports if the "storage" edge to the Storage entity was cleared.
-func (m *VersionMutation) StorageCleared() bool {
-	return m.clearedstorage
+// StoragesCleared reports if the "storages" edge to the Storage entity was cleared.
+func (m *VersionMutation) StoragesCleared() bool {
+	return m.clearedstorages
 }
 
-// RemoveStorageIDs removes the "storage" edge to the Storage entity by IDs.
+// RemoveStorageIDs removes the "storages" edge to the Storage entity by IDs.
 func (m *VersionMutation) RemoveStorageIDs(ids ...int) {
-	if m.removedstorage == nil {
-		m.removedstorage = make(map[int]struct{})
+	if m.removedstorages == nil {
+		m.removedstorages = make(map[int]struct{})
 	}
 	for i := range ids {
-		delete(m.storage, ids[i])
-		m.removedstorage[ids[i]] = struct{}{}
+		delete(m.storages, ids[i])
+		m.removedstorages[ids[i]] = struct{}{}
 	}
 }
 
-// RemovedStorage returns the removed IDs of the "storage" edge to the Storage entity.
-func (m *VersionMutation) RemovedStorageIDs() (ids []int) {
-	for id := range m.removedstorage {
+// RemovedStorages returns the removed IDs of the "storages" edge to the Storage entity.
+func (m *VersionMutation) RemovedStoragesIDs() (ids []int) {
+	for id := range m.removedstorages {
 		ids = append(ids, id)
 	}
 	return
 }
 
-// StorageIDs returns the "storage" edge IDs in the mutation.
-func (m *VersionMutation) StorageIDs() (ids []int) {
-	for id := range m.storage {
+// StoragesIDs returns the "storages" edge IDs in the mutation.
+func (m *VersionMutation) StoragesIDs() (ids []int) {
+	for id := range m.storages {
 		ids = append(ids, id)
 	}
 	return
 }
 
-// ResetStorage resets all changes to the "storage" edge.
-func (m *VersionMutation) ResetStorage() {
-	m.storage = nil
-	m.clearedstorage = false
-	m.removedstorage = nil
+// ResetStorages resets all changes to the "storages" edge.
+func (m *VersionMutation) ResetStorages() {
+	m.storages = nil
+	m.clearedstorages = false
+	m.removedstorages = nil
 }
 
 // SetResourceID sets the "resource" edge to the Resource entity by id.
-func (m *VersionMutation) SetResourceID(id int) {
+func (m *VersionMutation) SetResourceID(id string) {
 	m.resource = &id
 }
 
@@ -1448,7 +2492,7 @@ func (m *VersionMutation) ResourceCleared() bool {
 }
 
 // ResourceID returns the "resource" edge ID in the mutation.
-func (m *VersionMutation) ResourceID() (id int, exists bool) {
+func (m *VersionMutation) ResourceID() (id string, exists bool) {
 	if m.resource != nil {
 		return *m.resource, true
 	}
@@ -1458,7 +2502,7 @@ func (m *VersionMutation) ResourceID() (id int, exists bool) {
 // ResourceIDs returns the "resource" edge IDs in the mutation.
 // Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
 // ResourceID instead. It exists only for internal usage by the builders.
-func (m *VersionMutation) ResourceIDs() (ids []int) {
+func (m *VersionMutation) ResourceIDs() (ids []string) {
 	if id := m.resource; id != nil {
 		ids = append(ids, *id)
 	}
@@ -1505,15 +2549,21 @@ func (m *VersionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *VersionMutation) Fields() []string {
-	fields := make([]string, 0, 4)
+	fields := make([]string, 0, 6)
+	if m.channel != nil {
+		fields = append(fields, version.FieldChannel)
+	}
 	if m.name != nil {
 		fields = append(fields, version.FieldName)
 	}
 	if m.number != nil {
 		fields = append(fields, version.FieldNumber)
 	}
-	if m.file_hashes != nil {
-		fields = append(fields, version.FieldFileHashes)
+	if m.release_note != nil {
+		fields = append(fields, version.FieldReleaseNote)
+	}
+	if m.custom_data != nil {
+		fields = append(fields, version.FieldCustomData)
 	}
 	if m.created_at != nil {
 		fields = append(fields, version.FieldCreatedAt)
@@ -1526,12 +2576,16 @@ func (m *VersionMutation) Fields() []string {
 // schema.
 func (m *VersionMutation) Field(name string) (ent.Value, bool) {
 	switch name {
+	case version.FieldChannel:
+		return m.Channel()
 	case version.FieldName:
 		return m.Name()
 	case version.FieldNumber:
 		return m.Number()
-	case version.FieldFileHashes:
-		return m.FileHashes()
+	case version.FieldReleaseNote:
+		return m.ReleaseNote()
+	case version.FieldCustomData:
+		return m.CustomData()
 	case version.FieldCreatedAt:
 		return m.CreatedAt()
 	}
@@ -1543,12 +2597,16 @@ func (m *VersionMutation) Field(name string) (ent.Value, bool) {
 // database failed.
 func (m *VersionMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
+	case version.FieldChannel:
+		return m.OldChannel(ctx)
 	case version.FieldName:
 		return m.OldName(ctx)
 	case version.FieldNumber:
 		return m.OldNumber(ctx)
-	case version.FieldFileHashes:
-		return m.OldFileHashes(ctx)
+	case version.FieldReleaseNote:
+		return m.OldReleaseNote(ctx)
+	case version.FieldCustomData:
+		return m.OldCustomData(ctx)
 	case version.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	}
@@ -1560,6 +2618,13 @@ func (m *VersionMutation) OldField(ctx context.Context, name string) (ent.Value,
 // type.
 func (m *VersionMutation) SetField(name string, value ent.Value) error {
 	switch name {
+	case version.FieldChannel:
+		v, ok := value.(version.Channel)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannel(v)
+		return nil
 	case version.FieldName:
 		v, ok := value.(string)
 		if !ok {
@@ -1574,12 +2639,19 @@ func (m *VersionMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetNumber(v)
 		return nil
-	case version.FieldFileHashes:
-		v, ok := value.(map[string]string)
+	case version.FieldReleaseNote:
+		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetFileHashes(v)
+		m.SetReleaseNote(v)
+		return nil
+	case version.FieldCustomData:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCustomData(v)
 		return nil
 	case version.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -1632,11 +2704,7 @@ func (m *VersionMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *VersionMutation) ClearedFields() []string {
-	var fields []string
-	if m.FieldCleared(version.FieldFileHashes) {
-		fields = append(fields, version.FieldFileHashes)
-	}
-	return fields
+	return nil
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -1649,11 +2717,6 @@ func (m *VersionMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *VersionMutation) ClearField(name string) error {
-	switch name {
-	case version.FieldFileHashes:
-		m.ClearFileHashes()
-		return nil
-	}
 	return fmt.Errorf("unknown Version nullable field %s", name)
 }
 
@@ -1661,14 +2724,20 @@ func (m *VersionMutation) ClearField(name string) error {
 // It returns an error if the field is not defined in the schema.
 func (m *VersionMutation) ResetField(name string) error {
 	switch name {
+	case version.FieldChannel:
+		m.ResetChannel()
+		return nil
 	case version.FieldName:
 		m.ResetName()
 		return nil
 	case version.FieldNumber:
 		m.ResetNumber()
 		return nil
-	case version.FieldFileHashes:
-		m.ResetFileHashes()
+	case version.FieldReleaseNote:
+		m.ResetReleaseNote()
+		return nil
+	case version.FieldCustomData:
+		m.ResetCustomData()
 		return nil
 	case version.FieldCreatedAt:
 		m.ResetCreatedAt()
@@ -1680,8 +2749,8 @@ func (m *VersionMutation) ResetField(name string) error {
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *VersionMutation) AddedEdges() []string {
 	edges := make([]string, 0, 2)
-	if m.storage != nil {
-		edges = append(edges, version.EdgeStorage)
+	if m.storages != nil {
+		edges = append(edges, version.EdgeStorages)
 	}
 	if m.resource != nil {
 		edges = append(edges, version.EdgeResource)
@@ -1693,9 +2762,9 @@ func (m *VersionMutation) AddedEdges() []string {
 // name in this mutation.
 func (m *VersionMutation) AddedIDs(name string) []ent.Value {
 	switch name {
-	case version.EdgeStorage:
-		ids := make([]ent.Value, 0, len(m.storage))
-		for id := range m.storage {
+	case version.EdgeStorages:
+		ids := make([]ent.Value, 0, len(m.storages))
+		for id := range m.storages {
 			ids = append(ids, id)
 		}
 		return ids
@@ -1710,8 +2779,8 @@ func (m *VersionMutation) AddedIDs(name string) []ent.Value {
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *VersionMutation) RemovedEdges() []string {
 	edges := make([]string, 0, 2)
-	if m.removedstorage != nil {
-		edges = append(edges, version.EdgeStorage)
+	if m.removedstorages != nil {
+		edges = append(edges, version.EdgeStorages)
 	}
 	return edges
 }
@@ -1720,9 +2789,9 @@ func (m *VersionMutation) RemovedEdges() []string {
 // the given name in this mutation.
 func (m *VersionMutation) RemovedIDs(name string) []ent.Value {
 	switch name {
-	case version.EdgeStorage:
-		ids := make([]ent.Value, 0, len(m.removedstorage))
-		for id := range m.removedstorage {
+	case version.EdgeStorages:
+		ids := make([]ent.Value, 0, len(m.removedstorages))
+		for id := range m.removedstorages {
 			ids = append(ids, id)
 		}
 		return ids
@@ -1733,8 +2802,8 @@ func (m *VersionMutation) RemovedIDs(name string) []ent.Value {
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *VersionMutation) ClearedEdges() []string {
 	edges := make([]string, 0, 2)
-	if m.clearedstorage {
-		edges = append(edges, version.EdgeStorage)
+	if m.clearedstorages {
+		edges = append(edges, version.EdgeStorages)
 	}
 	if m.clearedresource {
 		edges = append(edges, version.EdgeResource)
@@ -1746,8 +2815,8 @@ func (m *VersionMutation) ClearedEdges() []string {
 // was cleared in this mutation.
 func (m *VersionMutation) EdgeCleared(name string) bool {
 	switch name {
-	case version.EdgeStorage:
-		return m.clearedstorage
+	case version.EdgeStorages:
+		return m.clearedstorages
 	case version.EdgeResource:
 		return m.clearedresource
 	}
@@ -1769,8 +2838,8 @@ func (m *VersionMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *VersionMutation) ResetEdge(name string) error {
 	switch name {
-	case version.EdgeStorage:
-		m.ResetStorage()
+	case version.EdgeStorages:
+		m.ResetStorages()
 		return nil
 	case version.EdgeResource:
 		m.ResetResource()

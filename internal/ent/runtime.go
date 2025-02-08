@@ -5,6 +5,7 @@ package ent
 import (
 	"time"
 
+	"github.com/MirrorChyan/resource-backend/internal/ent/latestversion"
 	"github.com/MirrorChyan/resource-backend/internal/ent/resource"
 	"github.com/MirrorChyan/resource-backend/internal/ent/schema"
 	"github.com/MirrorChyan/resource-backend/internal/ent/storage"
@@ -15,22 +16,58 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	latestversionFields := schema.LatestVersion{}.Fields()
+	_ = latestversionFields
+	// latestversionDescUpdatedAt is the schema descriptor for updated_at field.
+	latestversionDescUpdatedAt := latestversionFields[1].Descriptor()
+	// latestversion.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	latestversion.DefaultUpdatedAt = latestversionDescUpdatedAt.Default.(func() time.Time)
+	// latestversion.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	latestversion.UpdateDefaultUpdatedAt = latestversionDescUpdatedAt.UpdateDefault.(func() time.Time)
 	resourceFields := schema.Resource{}.Fields()
 	_ = resourceFields
+	// resourceDescName is the schema descriptor for name field.
+	resourceDescName := resourceFields[1].Descriptor()
+	// resource.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	resource.NameValidator = resourceDescName.Validators[0].(func(string) error)
 	// resourceDescCreatedAt is the schema descriptor for created_at field.
 	resourceDescCreatedAt := resourceFields[3].Descriptor()
 	// resource.DefaultCreatedAt holds the default value on creation for the created_at field.
 	resource.DefaultCreatedAt = resourceDescCreatedAt.Default.(func() time.Time)
+	// resourceDescID is the schema descriptor for id field.
+	resourceDescID := resourceFields[0].Descriptor()
+	// resource.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	resource.IDValidator = resourceDescID.Validators[0].(func(string) error)
 	storageFields := schema.Storage{}.Fields()
 	_ = storageFields
+	// storageDescOs is the schema descriptor for os field.
+	storageDescOs := storageFields[1].Descriptor()
+	// storage.DefaultOs holds the default value on creation for the os field.
+	storage.DefaultOs = storageDescOs.Default.(string)
+	// storageDescArch is the schema descriptor for arch field.
+	storageDescArch := storageFields[2].Descriptor()
+	// storage.DefaultArch holds the default value on creation for the arch field.
+	storage.DefaultArch = storageDescArch.Default.(string)
 	// storageDescCreatedAt is the schema descriptor for created_at field.
-	storageDescCreatedAt := storageFields[1].Descriptor()
+	storageDescCreatedAt := storageFields[7].Descriptor()
 	// storage.DefaultCreatedAt holds the default value on creation for the created_at field.
-	storage.DefaultCreatedAt = storageDescCreatedAt.Default.(time.Time)
+	storage.DefaultCreatedAt = storageDescCreatedAt.Default.(func() time.Time)
 	versionFields := schema.Version{}.Fields()
 	_ = versionFields
+	// versionDescName is the schema descriptor for name field.
+	versionDescName := versionFields[1].Descriptor()
+	// version.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	version.NameValidator = versionDescName.Validators[0].(func(string) error)
+	// versionDescReleaseNote is the schema descriptor for release_note field.
+	versionDescReleaseNote := versionFields[3].Descriptor()
+	// version.DefaultReleaseNote holds the default value on creation for the release_note field.
+	version.DefaultReleaseNote = versionDescReleaseNote.Default.(string)
+	// versionDescCustomData is the schema descriptor for custom_data field.
+	versionDescCustomData := versionFields[4].Descriptor()
+	// version.DefaultCustomData holds the default value on creation for the custom_data field.
+	version.DefaultCustomData = versionDescCustomData.Default.(string)
 	// versionDescCreatedAt is the schema descriptor for created_at field.
-	versionDescCreatedAt := versionFields[3].Descriptor()
+	versionDescCreatedAt := versionFields[5].Descriptor()
 	// version.DefaultCreatedAt holds the default value on creation for the created_at field.
-	version.DefaultCreatedAt = versionDescCreatedAt.Default.(time.Time)
+	version.DefaultCreatedAt = versionDescCreatedAt.Default.(func() time.Time)
 }

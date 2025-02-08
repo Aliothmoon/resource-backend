@@ -18,12 +18,12 @@ const (
 	FieldName = "name"
 	// FieldDescription holds the string denoting the description field in the database.
 	FieldDescription = "description"
-	// FieldLatestVersion holds the string denoting the latest_version field in the database.
-	FieldLatestVersion = "latest_version"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// EdgeVersions holds the string denoting the versions edge name in mutations.
 	EdgeVersions = "versions"
+	// EdgeLatestVersions holds the string denoting the latest_versions edge name in mutations.
+	EdgeLatestVersions = "latest_versions"
 	// Table holds the table name of the resource in the database.
 	Table = "resources"
 	// VersionsTable is the table that holds the versions relation/edge.
@@ -33,6 +33,13 @@ const (
 	VersionsInverseTable = "versions"
 	// VersionsColumn is the table column denoting the versions relation/edge.
 	VersionsColumn = "resource_versions"
+	// LatestVersionsTable is the table that holds the latest_versions relation/edge.
+	LatestVersionsTable = "latest_versions"
+	// LatestVersionsInverseTable is the table name for the LatestVersion entity.
+	// It exists in this package in order to avoid circular dependency with the "latestversion" package.
+	LatestVersionsInverseTable = "latest_versions"
+	// LatestVersionsColumn is the table column denoting the latest_versions relation/edge.
+	LatestVersionsColumn = "resource_latest_versions"
 )
 
 // Columns holds all SQL columns for resource fields.
@@ -40,7 +47,6 @@ var Columns = []string{
 	FieldID,
 	FieldName,
 	FieldDescription,
-	FieldLatestVersion,
 	FieldCreatedAt,
 }
 
@@ -55,8 +61,12 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// NameValidator is a validator for the "name" field. It is called by the builders before save.
+	NameValidator func(string) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
+	// IDValidator is a validator for the "id" field. It is called by the builders before save.
+	IDValidator func(string) error
 )
 
 // OrderOption defines the ordering options for the Resource queries.
@@ -77,11 +87,6 @@ func ByDescription(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDescription, opts...).ToFunc()
 }
 
-// ByLatestVersion orders the results by the latest_version field.
-func ByLatestVersion(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldLatestVersion, opts...).ToFunc()
-}
-
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
@@ -100,10 +105,31 @@ func ByVersions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newVersionsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByLatestVersionsCount orders the results by latest_versions count.
+func ByLatestVersionsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newLatestVersionsStep(), opts...)
+	}
+}
+
+// ByLatestVersions orders the results by latest_versions terms.
+func ByLatestVersions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newLatestVersionsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newVersionsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(VersionsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, VersionsTable, VersionsColumn),
+	)
+}
+func newLatestVersionsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(LatestVersionsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, LatestVersionsTable, LatestVersionsColumn),
 	)
 }

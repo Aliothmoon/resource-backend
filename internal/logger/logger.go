@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"io"
 	"os"
 	"path/filepath"
 
@@ -12,32 +11,31 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-func New(conf *config.Config) *zap.Logger {
-	cwd, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-	logPath := filepath.Join(cwd, "debug", "mirrorc-res.log")
-	hook := lumberjack.Logger{
-		Filename:   logPath,
-		MaxSize:    conf.Log.MaxSize,
-		MaxBackups: conf.Log.MaxBackups,
-		MaxAge:     conf.Log.MaxAge,
-		Compress:   conf.Log.Compress,
-	}
+var (
+	level = zap.NewAtomicLevelAt(zap.InfoLevel)
+)
 
-	encoder := getConsoleEncoder()
-	writer := io.MultiWriter(os.Stdout, &hook)
-	core := zapcore.NewCore(
-		encoder,
-		zapcore.AddSync(writer),
-		getLevel(conf.Log.Level),
+func SetLevel(l string) {
+	level.SetLevel(getLevel(l))
+}
+
+func New() *zap.Logger {
+	SetLevel(config.CFG.Log.Level)
+	config.SetLogLevelChangeListener(SetLevel)
+	var (
+		encoder = getConsoleEncoder()
+		core    = zapcore.NewCore(
+			encoder,
+			zapcore.AddSync(os.Stdout),
+			level,
+		)
 	)
+
 	return zap.New(core, zap.AddCaller(), zap.AddStacktrace(zap.ErrorLevel))
 }
 
-func getLevel(level string) zapcore.Level {
-	switch level {
+func getLevel(l string) zapcore.Level {
+	switch l {
 	case "debug":
 		return zap.DebugLevel
 	case "info":

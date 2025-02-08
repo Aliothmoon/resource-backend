@@ -65,9 +65,39 @@ func Number(v uint64) predicate.Version {
 	return predicate.Version(sql.FieldEQ(FieldNumber, v))
 }
 
+// ReleaseNote applies equality check predicate on the "release_note" field. It's identical to ReleaseNoteEQ.
+func ReleaseNote(v string) predicate.Version {
+	return predicate.Version(sql.FieldEQ(FieldReleaseNote, v))
+}
+
+// CustomData applies equality check predicate on the "custom_data" field. It's identical to CustomDataEQ.
+func CustomData(v string) predicate.Version {
+	return predicate.Version(sql.FieldEQ(FieldCustomData, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.Version {
 	return predicate.Version(sql.FieldEQ(FieldCreatedAt, v))
+}
+
+// ChannelEQ applies the EQ predicate on the "channel" field.
+func ChannelEQ(v Channel) predicate.Version {
+	return predicate.Version(sql.FieldEQ(FieldChannel, v))
+}
+
+// ChannelNEQ applies the NEQ predicate on the "channel" field.
+func ChannelNEQ(v Channel) predicate.Version {
+	return predicate.Version(sql.FieldNEQ(FieldChannel, v))
+}
+
+// ChannelIn applies the In predicate on the "channel" field.
+func ChannelIn(vs ...Channel) predicate.Version {
+	return predicate.Version(sql.FieldIn(FieldChannel, vs...))
+}
+
+// ChannelNotIn applies the NotIn predicate on the "channel" field.
+func ChannelNotIn(vs ...Channel) predicate.Version {
+	return predicate.Version(sql.FieldNotIn(FieldChannel, vs...))
 }
 
 // NameEQ applies the EQ predicate on the "name" field.
@@ -175,14 +205,134 @@ func NumberLTE(v uint64) predicate.Version {
 	return predicate.Version(sql.FieldLTE(FieldNumber, v))
 }
 
-// FileHashesIsNil applies the IsNil predicate on the "file_hashes" field.
-func FileHashesIsNil() predicate.Version {
-	return predicate.Version(sql.FieldIsNull(FieldFileHashes))
+// ReleaseNoteEQ applies the EQ predicate on the "release_note" field.
+func ReleaseNoteEQ(v string) predicate.Version {
+	return predicate.Version(sql.FieldEQ(FieldReleaseNote, v))
 }
 
-// FileHashesNotNil applies the NotNil predicate on the "file_hashes" field.
-func FileHashesNotNil() predicate.Version {
-	return predicate.Version(sql.FieldNotNull(FieldFileHashes))
+// ReleaseNoteNEQ applies the NEQ predicate on the "release_note" field.
+func ReleaseNoteNEQ(v string) predicate.Version {
+	return predicate.Version(sql.FieldNEQ(FieldReleaseNote, v))
+}
+
+// ReleaseNoteIn applies the In predicate on the "release_note" field.
+func ReleaseNoteIn(vs ...string) predicate.Version {
+	return predicate.Version(sql.FieldIn(FieldReleaseNote, vs...))
+}
+
+// ReleaseNoteNotIn applies the NotIn predicate on the "release_note" field.
+func ReleaseNoteNotIn(vs ...string) predicate.Version {
+	return predicate.Version(sql.FieldNotIn(FieldReleaseNote, vs...))
+}
+
+// ReleaseNoteGT applies the GT predicate on the "release_note" field.
+func ReleaseNoteGT(v string) predicate.Version {
+	return predicate.Version(sql.FieldGT(FieldReleaseNote, v))
+}
+
+// ReleaseNoteGTE applies the GTE predicate on the "release_note" field.
+func ReleaseNoteGTE(v string) predicate.Version {
+	return predicate.Version(sql.FieldGTE(FieldReleaseNote, v))
+}
+
+// ReleaseNoteLT applies the LT predicate on the "release_note" field.
+func ReleaseNoteLT(v string) predicate.Version {
+	return predicate.Version(sql.FieldLT(FieldReleaseNote, v))
+}
+
+// ReleaseNoteLTE applies the LTE predicate on the "release_note" field.
+func ReleaseNoteLTE(v string) predicate.Version {
+	return predicate.Version(sql.FieldLTE(FieldReleaseNote, v))
+}
+
+// ReleaseNoteContains applies the Contains predicate on the "release_note" field.
+func ReleaseNoteContains(v string) predicate.Version {
+	return predicate.Version(sql.FieldContains(FieldReleaseNote, v))
+}
+
+// ReleaseNoteHasPrefix applies the HasPrefix predicate on the "release_note" field.
+func ReleaseNoteHasPrefix(v string) predicate.Version {
+	return predicate.Version(sql.FieldHasPrefix(FieldReleaseNote, v))
+}
+
+// ReleaseNoteHasSuffix applies the HasSuffix predicate on the "release_note" field.
+func ReleaseNoteHasSuffix(v string) predicate.Version {
+	return predicate.Version(sql.FieldHasSuffix(FieldReleaseNote, v))
+}
+
+// ReleaseNoteEqualFold applies the EqualFold predicate on the "release_note" field.
+func ReleaseNoteEqualFold(v string) predicate.Version {
+	return predicate.Version(sql.FieldEqualFold(FieldReleaseNote, v))
+}
+
+// ReleaseNoteContainsFold applies the ContainsFold predicate on the "release_note" field.
+func ReleaseNoteContainsFold(v string) predicate.Version {
+	return predicate.Version(sql.FieldContainsFold(FieldReleaseNote, v))
+}
+
+// CustomDataEQ applies the EQ predicate on the "custom_data" field.
+func CustomDataEQ(v string) predicate.Version {
+	return predicate.Version(sql.FieldEQ(FieldCustomData, v))
+}
+
+// CustomDataNEQ applies the NEQ predicate on the "custom_data" field.
+func CustomDataNEQ(v string) predicate.Version {
+	return predicate.Version(sql.FieldNEQ(FieldCustomData, v))
+}
+
+// CustomDataIn applies the In predicate on the "custom_data" field.
+func CustomDataIn(vs ...string) predicate.Version {
+	return predicate.Version(sql.FieldIn(FieldCustomData, vs...))
+}
+
+// CustomDataNotIn applies the NotIn predicate on the "custom_data" field.
+func CustomDataNotIn(vs ...string) predicate.Version {
+	return predicate.Version(sql.FieldNotIn(FieldCustomData, vs...))
+}
+
+// CustomDataGT applies the GT predicate on the "custom_data" field.
+func CustomDataGT(v string) predicate.Version {
+	return predicate.Version(sql.FieldGT(FieldCustomData, v))
+}
+
+// CustomDataGTE applies the GTE predicate on the "custom_data" field.
+func CustomDataGTE(v string) predicate.Version {
+	return predicate.Version(sql.FieldGTE(FieldCustomData, v))
+}
+
+// CustomDataLT applies the LT predicate on the "custom_data" field.
+func CustomDataLT(v string) predicate.Version {
+	return predicate.Version(sql.FieldLT(FieldCustomData, v))
+}
+
+// CustomDataLTE applies the LTE predicate on the "custom_data" field.
+func CustomDataLTE(v string) predicate.Version {
+	return predicate.Version(sql.FieldLTE(FieldCustomData, v))
+}
+
+// CustomDataContains applies the Contains predicate on the "custom_data" field.
+func CustomDataContains(v string) predicate.Version {
+	return predicate.Version(sql.FieldContains(FieldCustomData, v))
+}
+
+// CustomDataHasPrefix applies the HasPrefix predicate on the "custom_data" field.
+func CustomDataHasPrefix(v string) predicate.Version {
+	return predicate.Version(sql.FieldHasPrefix(FieldCustomData, v))
+}
+
+// CustomDataHasSuffix applies the HasSuffix predicate on the "custom_data" field.
+func CustomDataHasSuffix(v string) predicate.Version {
+	return predicate.Version(sql.FieldHasSuffix(FieldCustomData, v))
+}
+
+// CustomDataEqualFold applies the EqualFold predicate on the "custom_data" field.
+func CustomDataEqualFold(v string) predicate.Version {
+	return predicate.Version(sql.FieldEqualFold(FieldCustomData, v))
+}
+
+// CustomDataContainsFold applies the ContainsFold predicate on the "custom_data" field.
+func CustomDataContainsFold(v string) predicate.Version {
+	return predicate.Version(sql.FieldContainsFold(FieldCustomData, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
@@ -225,21 +375,21 @@ func CreatedAtLTE(v time.Time) predicate.Version {
 	return predicate.Version(sql.FieldLTE(FieldCreatedAt, v))
 }
 
-// HasStorage applies the HasEdge predicate on the "storage" edge.
-func HasStorage() predicate.Version {
+// HasStorages applies the HasEdge predicate on the "storages" edge.
+func HasStorages() predicate.Version {
 	return predicate.Version(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, StorageTable, StorageColumn),
+			sqlgraph.Edge(sqlgraph.O2M, false, StoragesTable, StoragesColumn),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})
 }
 
-// HasStorageWith applies the HasEdge predicate on the "storage" edge with a given conditions (other predicates).
-func HasStorageWith(preds ...predicate.Storage) predicate.Version {
+// HasStoragesWith applies the HasEdge predicate on the "storages" edge with a given conditions (other predicates).
+func HasStoragesWith(preds ...predicate.Storage) predicate.Version {
 	return predicate.Version(func(s *sql.Selector) {
-		step := newStorageStep()
+		step := newStoragesStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

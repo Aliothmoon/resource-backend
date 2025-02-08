@@ -30,6 +30,20 @@ func (vu *VersionUpdate) Where(ps ...predicate.Version) *VersionUpdate {
 	return vu
 }
 
+// SetChannel sets the "channel" field.
+func (vu *VersionUpdate) SetChannel(v version.Channel) *VersionUpdate {
+	vu.mutation.SetChannel(v)
+	return vu
+}
+
+// SetNillableChannel sets the "channel" field if the given value is not nil.
+func (vu *VersionUpdate) SetNillableChannel(v *version.Channel) *VersionUpdate {
+	if v != nil {
+		vu.SetChannel(*v)
+	}
+	return vu
+}
+
 // SetName sets the "name" field.
 func (vu *VersionUpdate) SetName(s string) *VersionUpdate {
 	vu.mutation.SetName(s)
@@ -65,15 +79,31 @@ func (vu *VersionUpdate) AddNumber(u int64) *VersionUpdate {
 	return vu
 }
 
-// SetFileHashes sets the "file_hashes" field.
-func (vu *VersionUpdate) SetFileHashes(m map[string]string) *VersionUpdate {
-	vu.mutation.SetFileHashes(m)
+// SetReleaseNote sets the "release_note" field.
+func (vu *VersionUpdate) SetReleaseNote(s string) *VersionUpdate {
+	vu.mutation.SetReleaseNote(s)
 	return vu
 }
 
-// ClearFileHashes clears the value of the "file_hashes" field.
-func (vu *VersionUpdate) ClearFileHashes() *VersionUpdate {
-	vu.mutation.ClearFileHashes()
+// SetNillableReleaseNote sets the "release_note" field if the given value is not nil.
+func (vu *VersionUpdate) SetNillableReleaseNote(s *string) *VersionUpdate {
+	if s != nil {
+		vu.SetReleaseNote(*s)
+	}
+	return vu
+}
+
+// SetCustomData sets the "custom_data" field.
+func (vu *VersionUpdate) SetCustomData(s string) *VersionUpdate {
+	vu.mutation.SetCustomData(s)
+	return vu
+}
+
+// SetNillableCustomData sets the "custom_data" field if the given value is not nil.
+func (vu *VersionUpdate) SetNillableCustomData(s *string) *VersionUpdate {
+	if s != nil {
+		vu.SetCustomData(*s)
+	}
 	return vu
 }
 
@@ -91,14 +121,14 @@ func (vu *VersionUpdate) SetNillableCreatedAt(t *time.Time) *VersionUpdate {
 	return vu
 }
 
-// AddStorageIDs adds the "storage" edge to the Storage entity by IDs.
+// AddStorageIDs adds the "storages" edge to the Storage entity by IDs.
 func (vu *VersionUpdate) AddStorageIDs(ids ...int) *VersionUpdate {
 	vu.mutation.AddStorageIDs(ids...)
 	return vu
 }
 
-// AddStorage adds the "storage" edges to the Storage entity.
-func (vu *VersionUpdate) AddStorage(s ...*Storage) *VersionUpdate {
+// AddStorages adds the "storages" edges to the Storage entity.
+func (vu *VersionUpdate) AddStorages(s ...*Storage) *VersionUpdate {
 	ids := make([]int, len(s))
 	for i := range s {
 		ids[i] = s[i].ID
@@ -107,13 +137,13 @@ func (vu *VersionUpdate) AddStorage(s ...*Storage) *VersionUpdate {
 }
 
 // SetResourceID sets the "resource" edge to the Resource entity by ID.
-func (vu *VersionUpdate) SetResourceID(id int) *VersionUpdate {
+func (vu *VersionUpdate) SetResourceID(id string) *VersionUpdate {
 	vu.mutation.SetResourceID(id)
 	return vu
 }
 
 // SetNillableResourceID sets the "resource" edge to the Resource entity by ID if the given value is not nil.
-func (vu *VersionUpdate) SetNillableResourceID(id *int) *VersionUpdate {
+func (vu *VersionUpdate) SetNillableResourceID(id *string) *VersionUpdate {
 	if id != nil {
 		vu = vu.SetResourceID(*id)
 	}
@@ -130,20 +160,20 @@ func (vu *VersionUpdate) Mutation() *VersionMutation {
 	return vu.mutation
 }
 
-// ClearStorage clears all "storage" edges to the Storage entity.
-func (vu *VersionUpdate) ClearStorage() *VersionUpdate {
-	vu.mutation.ClearStorage()
+// ClearStorages clears all "storages" edges to the Storage entity.
+func (vu *VersionUpdate) ClearStorages() *VersionUpdate {
+	vu.mutation.ClearStorages()
 	return vu
 }
 
-// RemoveStorageIDs removes the "storage" edge to Storage entities by IDs.
+// RemoveStorageIDs removes the "storages" edge to Storage entities by IDs.
 func (vu *VersionUpdate) RemoveStorageIDs(ids ...int) *VersionUpdate {
 	vu.mutation.RemoveStorageIDs(ids...)
 	return vu
 }
 
-// RemoveStorage removes "storage" edges to Storage entities.
-func (vu *VersionUpdate) RemoveStorage(s ...*Storage) *VersionUpdate {
+// RemoveStorages removes "storages" edges to Storage entities.
+func (vu *VersionUpdate) RemoveStorages(s ...*Storage) *VersionUpdate {
 	ids := make([]int, len(s))
 	for i := range s {
 		ids[i] = s[i].ID
@@ -184,7 +214,25 @@ func (vu *VersionUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (vu *VersionUpdate) check() error {
+	if v, ok := vu.mutation.Channel(); ok {
+		if err := version.ChannelValidator(v); err != nil {
+			return &ValidationError{Name: "channel", err: fmt.Errorf(`ent: validator failed for field "Version.channel": %w`, err)}
+		}
+	}
+	if v, ok := vu.mutation.Name(); ok {
+		if err := version.NameValidator(v); err != nil {
+			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Version.name": %w`, err)}
+		}
+	}
+	return nil
+}
+
 func (vu *VersionUpdate) sqlSave(ctx context.Context) (n int, err error) {
+	if err := vu.check(); err != nil {
+		return n, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(version.Table, version.Columns, sqlgraph.NewFieldSpec(version.FieldID, field.TypeInt))
 	if ps := vu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -192,6 +240,9 @@ func (vu *VersionUpdate) sqlSave(ctx context.Context) (n int, err error) {
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := vu.mutation.Channel(); ok {
+		_spec.SetField(version.FieldChannel, field.TypeEnum, value)
 	}
 	if value, ok := vu.mutation.Name(); ok {
 		_spec.SetField(version.FieldName, field.TypeString, value)
@@ -202,21 +253,21 @@ func (vu *VersionUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if value, ok := vu.mutation.AddedNumber(); ok {
 		_spec.AddField(version.FieldNumber, field.TypeUint64, value)
 	}
-	if value, ok := vu.mutation.FileHashes(); ok {
-		_spec.SetField(version.FieldFileHashes, field.TypeJSON, value)
+	if value, ok := vu.mutation.ReleaseNote(); ok {
+		_spec.SetField(version.FieldReleaseNote, field.TypeString, value)
 	}
-	if vu.mutation.FileHashesCleared() {
-		_spec.ClearField(version.FieldFileHashes, field.TypeJSON)
+	if value, ok := vu.mutation.CustomData(); ok {
+		_spec.SetField(version.FieldCustomData, field.TypeString, value)
 	}
 	if value, ok := vu.mutation.CreatedAt(); ok {
 		_spec.SetField(version.FieldCreatedAt, field.TypeTime, value)
 	}
-	if vu.mutation.StorageCleared() {
+	if vu.mutation.StoragesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   version.StorageTable,
-			Columns: []string{version.StorageColumn},
+			Table:   version.StoragesTable,
+			Columns: []string{version.StoragesColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(storage.FieldID, field.TypeInt),
@@ -224,12 +275,12 @@ func (vu *VersionUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := vu.mutation.RemovedStorageIDs(); len(nodes) > 0 && !vu.mutation.StorageCleared() {
+	if nodes := vu.mutation.RemovedStoragesIDs(); len(nodes) > 0 && !vu.mutation.StoragesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   version.StorageTable,
-			Columns: []string{version.StorageColumn},
+			Table:   version.StoragesTable,
+			Columns: []string{version.StoragesColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(storage.FieldID, field.TypeInt),
@@ -240,12 +291,12 @@ func (vu *VersionUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := vu.mutation.StorageIDs(); len(nodes) > 0 {
+	if nodes := vu.mutation.StoragesIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   version.StorageTable,
-			Columns: []string{version.StorageColumn},
+			Table:   version.StoragesTable,
+			Columns: []string{version.StoragesColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(storage.FieldID, field.TypeInt),
@@ -264,7 +315,7 @@ func (vu *VersionUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Columns: []string{version.ResourceColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(resource.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(resource.FieldID, field.TypeString),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
@@ -277,7 +328,7 @@ func (vu *VersionUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Columns: []string{version.ResourceColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(resource.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(resource.FieldID, field.TypeString),
 			},
 		}
 		for _, k := range nodes {
@@ -303,6 +354,20 @@ type VersionUpdateOne struct {
 	fields   []string
 	hooks    []Hook
 	mutation *VersionMutation
+}
+
+// SetChannel sets the "channel" field.
+func (vuo *VersionUpdateOne) SetChannel(v version.Channel) *VersionUpdateOne {
+	vuo.mutation.SetChannel(v)
+	return vuo
+}
+
+// SetNillableChannel sets the "channel" field if the given value is not nil.
+func (vuo *VersionUpdateOne) SetNillableChannel(v *version.Channel) *VersionUpdateOne {
+	if v != nil {
+		vuo.SetChannel(*v)
+	}
+	return vuo
 }
 
 // SetName sets the "name" field.
@@ -340,15 +405,31 @@ func (vuo *VersionUpdateOne) AddNumber(u int64) *VersionUpdateOne {
 	return vuo
 }
 
-// SetFileHashes sets the "file_hashes" field.
-func (vuo *VersionUpdateOne) SetFileHashes(m map[string]string) *VersionUpdateOne {
-	vuo.mutation.SetFileHashes(m)
+// SetReleaseNote sets the "release_note" field.
+func (vuo *VersionUpdateOne) SetReleaseNote(s string) *VersionUpdateOne {
+	vuo.mutation.SetReleaseNote(s)
 	return vuo
 }
 
-// ClearFileHashes clears the value of the "file_hashes" field.
-func (vuo *VersionUpdateOne) ClearFileHashes() *VersionUpdateOne {
-	vuo.mutation.ClearFileHashes()
+// SetNillableReleaseNote sets the "release_note" field if the given value is not nil.
+func (vuo *VersionUpdateOne) SetNillableReleaseNote(s *string) *VersionUpdateOne {
+	if s != nil {
+		vuo.SetReleaseNote(*s)
+	}
+	return vuo
+}
+
+// SetCustomData sets the "custom_data" field.
+func (vuo *VersionUpdateOne) SetCustomData(s string) *VersionUpdateOne {
+	vuo.mutation.SetCustomData(s)
+	return vuo
+}
+
+// SetNillableCustomData sets the "custom_data" field if the given value is not nil.
+func (vuo *VersionUpdateOne) SetNillableCustomData(s *string) *VersionUpdateOne {
+	if s != nil {
+		vuo.SetCustomData(*s)
+	}
 	return vuo
 }
 
@@ -366,14 +447,14 @@ func (vuo *VersionUpdateOne) SetNillableCreatedAt(t *time.Time) *VersionUpdateOn
 	return vuo
 }
 
-// AddStorageIDs adds the "storage" edge to the Storage entity by IDs.
+// AddStorageIDs adds the "storages" edge to the Storage entity by IDs.
 func (vuo *VersionUpdateOne) AddStorageIDs(ids ...int) *VersionUpdateOne {
 	vuo.mutation.AddStorageIDs(ids...)
 	return vuo
 }
 
-// AddStorage adds the "storage" edges to the Storage entity.
-func (vuo *VersionUpdateOne) AddStorage(s ...*Storage) *VersionUpdateOne {
+// AddStorages adds the "storages" edges to the Storage entity.
+func (vuo *VersionUpdateOne) AddStorages(s ...*Storage) *VersionUpdateOne {
 	ids := make([]int, len(s))
 	for i := range s {
 		ids[i] = s[i].ID
@@ -382,13 +463,13 @@ func (vuo *VersionUpdateOne) AddStorage(s ...*Storage) *VersionUpdateOne {
 }
 
 // SetResourceID sets the "resource" edge to the Resource entity by ID.
-func (vuo *VersionUpdateOne) SetResourceID(id int) *VersionUpdateOne {
+func (vuo *VersionUpdateOne) SetResourceID(id string) *VersionUpdateOne {
 	vuo.mutation.SetResourceID(id)
 	return vuo
 }
 
 // SetNillableResourceID sets the "resource" edge to the Resource entity by ID if the given value is not nil.
-func (vuo *VersionUpdateOne) SetNillableResourceID(id *int) *VersionUpdateOne {
+func (vuo *VersionUpdateOne) SetNillableResourceID(id *string) *VersionUpdateOne {
 	if id != nil {
 		vuo = vuo.SetResourceID(*id)
 	}
@@ -405,20 +486,20 @@ func (vuo *VersionUpdateOne) Mutation() *VersionMutation {
 	return vuo.mutation
 }
 
-// ClearStorage clears all "storage" edges to the Storage entity.
-func (vuo *VersionUpdateOne) ClearStorage() *VersionUpdateOne {
-	vuo.mutation.ClearStorage()
+// ClearStorages clears all "storages" edges to the Storage entity.
+func (vuo *VersionUpdateOne) ClearStorages() *VersionUpdateOne {
+	vuo.mutation.ClearStorages()
 	return vuo
 }
 
-// RemoveStorageIDs removes the "storage" edge to Storage entities by IDs.
+// RemoveStorageIDs removes the "storages" edge to Storage entities by IDs.
 func (vuo *VersionUpdateOne) RemoveStorageIDs(ids ...int) *VersionUpdateOne {
 	vuo.mutation.RemoveStorageIDs(ids...)
 	return vuo
 }
 
-// RemoveStorage removes "storage" edges to Storage entities.
-func (vuo *VersionUpdateOne) RemoveStorage(s ...*Storage) *VersionUpdateOne {
+// RemoveStorages removes "storages" edges to Storage entities.
+func (vuo *VersionUpdateOne) RemoveStorages(s ...*Storage) *VersionUpdateOne {
 	ids := make([]int, len(s))
 	for i := range s {
 		ids[i] = s[i].ID
@@ -472,7 +553,25 @@ func (vuo *VersionUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (vuo *VersionUpdateOne) check() error {
+	if v, ok := vuo.mutation.Channel(); ok {
+		if err := version.ChannelValidator(v); err != nil {
+			return &ValidationError{Name: "channel", err: fmt.Errorf(`ent: validator failed for field "Version.channel": %w`, err)}
+		}
+	}
+	if v, ok := vuo.mutation.Name(); ok {
+		if err := version.NameValidator(v); err != nil {
+			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Version.name": %w`, err)}
+		}
+	}
+	return nil
+}
+
 func (vuo *VersionUpdateOne) sqlSave(ctx context.Context) (_node *Version, err error) {
+	if err := vuo.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(version.Table, version.Columns, sqlgraph.NewFieldSpec(version.FieldID, field.TypeInt))
 	id, ok := vuo.mutation.ID()
 	if !ok {
@@ -498,6 +597,9 @@ func (vuo *VersionUpdateOne) sqlSave(ctx context.Context) (_node *Version, err e
 			}
 		}
 	}
+	if value, ok := vuo.mutation.Channel(); ok {
+		_spec.SetField(version.FieldChannel, field.TypeEnum, value)
+	}
 	if value, ok := vuo.mutation.Name(); ok {
 		_spec.SetField(version.FieldName, field.TypeString, value)
 	}
@@ -507,21 +609,21 @@ func (vuo *VersionUpdateOne) sqlSave(ctx context.Context) (_node *Version, err e
 	if value, ok := vuo.mutation.AddedNumber(); ok {
 		_spec.AddField(version.FieldNumber, field.TypeUint64, value)
 	}
-	if value, ok := vuo.mutation.FileHashes(); ok {
-		_spec.SetField(version.FieldFileHashes, field.TypeJSON, value)
+	if value, ok := vuo.mutation.ReleaseNote(); ok {
+		_spec.SetField(version.FieldReleaseNote, field.TypeString, value)
 	}
-	if vuo.mutation.FileHashesCleared() {
-		_spec.ClearField(version.FieldFileHashes, field.TypeJSON)
+	if value, ok := vuo.mutation.CustomData(); ok {
+		_spec.SetField(version.FieldCustomData, field.TypeString, value)
 	}
 	if value, ok := vuo.mutation.CreatedAt(); ok {
 		_spec.SetField(version.FieldCreatedAt, field.TypeTime, value)
 	}
-	if vuo.mutation.StorageCleared() {
+	if vuo.mutation.StoragesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   version.StorageTable,
-			Columns: []string{version.StorageColumn},
+			Table:   version.StoragesTable,
+			Columns: []string{version.StoragesColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(storage.FieldID, field.TypeInt),
@@ -529,12 +631,12 @@ func (vuo *VersionUpdateOne) sqlSave(ctx context.Context) (_node *Version, err e
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := vuo.mutation.RemovedStorageIDs(); len(nodes) > 0 && !vuo.mutation.StorageCleared() {
+	if nodes := vuo.mutation.RemovedStoragesIDs(); len(nodes) > 0 && !vuo.mutation.StoragesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   version.StorageTable,
-			Columns: []string{version.StorageColumn},
+			Table:   version.StoragesTable,
+			Columns: []string{version.StoragesColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(storage.FieldID, field.TypeInt),
@@ -545,12 +647,12 @@ func (vuo *VersionUpdateOne) sqlSave(ctx context.Context) (_node *Version, err e
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := vuo.mutation.StorageIDs(); len(nodes) > 0 {
+	if nodes := vuo.mutation.StoragesIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   version.StorageTable,
-			Columns: []string{version.StorageColumn},
+			Table:   version.StoragesTable,
+			Columns: []string{version.StoragesColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(storage.FieldID, field.TypeInt),
@@ -569,7 +671,7 @@ func (vuo *VersionUpdateOne) sqlSave(ctx context.Context) (_node *Version, err e
 			Columns: []string{version.ResourceColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(resource.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(resource.FieldID, field.TypeString),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
@@ -582,7 +684,7 @@ func (vuo *VersionUpdateOne) sqlSave(ctx context.Context) (_node *Version, err e
 			Columns: []string{version.ResourceColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(resource.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(resource.FieldID, field.TypeString),
 			},
 		}
 		for _, k := range nodes {

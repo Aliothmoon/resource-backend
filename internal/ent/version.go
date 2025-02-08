@@ -3,7 +3,6 @@
 package ent
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -19,25 +18,29 @@ type Version struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID int `json:"id,omitempty"`
+	// Channel holds the value of the "channel" field.
+	Channel version.Channel `json:"channel,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
 	// Number holds the value of the "number" field.
 	Number uint64 `json:"number,omitempty"`
-	// FileHashes holds the value of the "file_hashes" field.
-	FileHashes map[string]string `json:"file_hashes,omitempty"`
+	// ReleaseNote holds the value of the "release_note" field.
+	ReleaseNote string `json:"release_note,omitempty"`
+	// CustomData holds the value of the "custom_data" field.
+	CustomData string `json:"custom_data,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the VersionQuery when eager-loading is set.
 	Edges             VersionEdges `json:"edges"`
-	resource_versions *int
+	resource_versions *string
 	selectValues      sql.SelectValues
 }
 
 // VersionEdges holds the relations/edges for other nodes in the graph.
 type VersionEdges struct {
-	// Storage holds the value of the storage edge.
-	Storage []*Storage `json:"storage,omitempty"`
+	// Storages holds the value of the storages edge.
+	Storages []*Storage `json:"storages,omitempty"`
 	// Resource holds the value of the resource edge.
 	Resource *Resource `json:"resource,omitempty"`
 	// loadedTypes holds the information for reporting if a
@@ -45,13 +48,13 @@ type VersionEdges struct {
 	loadedTypes [2]bool
 }
 
-// StorageOrErr returns the Storage value or an error if the edge
+// StoragesOrErr returns the Storages value or an error if the edge
 // was not loaded in eager-loading.
-func (e VersionEdges) StorageOrErr() ([]*Storage, error) {
+func (e VersionEdges) StoragesOrErr() ([]*Storage, error) {
 	if e.loadedTypes[0] {
-		return e.Storage, nil
+		return e.Storages, nil
 	}
-	return nil, &NotLoadedError{edge: "storage"}
+	return nil, &NotLoadedError{edge: "storages"}
 }
 
 // ResourceOrErr returns the Resource value or an error if the edge
@@ -70,16 +73,14 @@ func (*Version) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case version.FieldFileHashes:
-			values[i] = new([]byte)
 		case version.FieldID, version.FieldNumber:
 			values[i] = new(sql.NullInt64)
-		case version.FieldName:
+		case version.FieldChannel, version.FieldName, version.FieldReleaseNote, version.FieldCustomData:
 			values[i] = new(sql.NullString)
 		case version.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
 		case version.ForeignKeys[0]: // resource_versions
-			values[i] = new(sql.NullInt64)
+			values[i] = new(sql.NullString)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -101,6 +102,12 @@ func (v *Version) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field id", value)
 			}
 			v.ID = int(value.Int64)
+		case version.FieldChannel:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field channel", values[i])
+			} else if value.Valid {
+				v.Channel = version.Channel(value.String)
+			}
 		case version.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
@@ -113,13 +120,17 @@ func (v *Version) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				v.Number = uint64(value.Int64)
 			}
-		case version.FieldFileHashes:
-			if value, ok := values[i].(*[]byte); !ok {
-				return fmt.Errorf("unexpected type %T for field file_hashes", values[i])
-			} else if value != nil && len(*value) > 0 {
-				if err := json.Unmarshal(*value, &v.FileHashes); err != nil {
-					return fmt.Errorf("unmarshal field file_hashes: %w", err)
-				}
+		case version.FieldReleaseNote:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field release_note", values[i])
+			} else if value.Valid {
+				v.ReleaseNote = value.String
+			}
+		case version.FieldCustomData:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field custom_data", values[i])
+			} else if value.Valid {
+				v.CustomData = value.String
 			}
 		case version.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -128,11 +139,11 @@ func (v *Version) assignValues(columns []string, values []any) error {
 				v.CreatedAt = value.Time
 			}
 		case version.ForeignKeys[0]:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for edge-field resource_versions", value)
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field resource_versions", values[i])
 			} else if value.Valid {
-				v.resource_versions = new(int)
-				*v.resource_versions = int(value.Int64)
+				v.resource_versions = new(string)
+				*v.resource_versions = value.String
 			}
 		default:
 			v.selectValues.Set(columns[i], values[i])
@@ -147,9 +158,9 @@ func (v *Version) Value(name string) (ent.Value, error) {
 	return v.selectValues.Get(name)
 }
 
-// QueryStorage queries the "storage" edge of the Version entity.
-func (v *Version) QueryStorage() *StorageQuery {
-	return NewVersionClient(v.config).QueryStorage(v)
+// QueryStorages queries the "storages" edge of the Version entity.
+func (v *Version) QueryStorages() *StorageQuery {
+	return NewVersionClient(v.config).QueryStorages(v)
 }
 
 // QueryResource queries the "resource" edge of the Version entity.
@@ -180,14 +191,20 @@ func (v *Version) String() string {
 	var builder strings.Builder
 	builder.WriteString("Version(")
 	builder.WriteString(fmt.Sprintf("id=%v, ", v.ID))
+	builder.WriteString("channel=")
+	builder.WriteString(fmt.Sprintf("%v", v.Channel))
+	builder.WriteString(", ")
 	builder.WriteString("name=")
 	builder.WriteString(v.Name)
 	builder.WriteString(", ")
 	builder.WriteString("number=")
 	builder.WriteString(fmt.Sprintf("%v", v.Number))
 	builder.WriteString(", ")
-	builder.WriteString("file_hashes=")
-	builder.WriteString(fmt.Sprintf("%v", v.FileHashes))
+	builder.WriteString("release_note=")
+	builder.WriteString(v.ReleaseNote)
+	builder.WriteString(", ")
+	builder.WriteString("custom_data=")
+	builder.WriteString(v.CustomData)
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(v.CreatedAt.Format(time.ANSIC))

@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"go.uber.org/zap"
 )
 
 // UnpackZip unpacks a zip archive to the specified destination directory.
@@ -17,7 +19,9 @@ func UnpackZip(src, dest string) error {
 	if err != nil {
 		return err
 	}
-	defer r.Close()
+	defer func(r *zip.ReadCloser) {
+		_ = r.Close()
+	}(r)
 
 	for _, f := range r.File {
 		fpath := filepath.Join(dest, f.Name)
@@ -26,7 +30,7 @@ func UnpackZip(src, dest string) error {
 		}
 
 		if f.FileInfo().IsDir() {
-			os.MkdirAll(fpath, os.ModePerm)
+			_ = os.MkdirAll(fpath, os.ModePerm)
 			continue
 		}
 
@@ -113,13 +117,25 @@ func CompressToZip(srcDir, destZip string) error {
 	if err != nil {
 		return err
 	}
-	defer zipFile.Close()
+	defer func(f *os.File) {
+		if err := f.Close(); err != nil {
+			zap.L().Error("Failed to close zip file",
+				zap.Error(err),
+			)
+		}
+	}(zipFile)
 
-	zipWriter := zip.NewWriter(zipFile)
-	defer zipWriter.Close()
+	writer := zip.NewWriter(zipFile)
+	defer func(w *zip.Writer) {
+		if err := w.Close(); err != nil {
+			zap.L().Error("Failed to close zip writer",
+				zap.Error(err),
+			)
+		}
+	}(writer)
 
 	return filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
+		if err != nil || info.IsDir() {
 			return err
 		}
 
@@ -128,17 +144,21 @@ func CompressToZip(srcDir, destZip string) error {
 			return err
 		}
 
-		if info.IsDir() {
-			return nil
-		}
-
 		file, err := os.Open(path)
 		if err != nil {
 			return err
 		}
-		defer file.Close()
+		defer func(file *os.File) {
+			err := file.Close()
+			if err != nil {
+				zap.L().Error("Failed to close file",
+					zap.String("file", file.Name()),
+					zap.Error(err),
+				)
+			}
+		}(file)
 
-		zipFileWriter, err := zipWriter.Create(relPath)
+		zipFileWriter, err := writer.Create(relPath)
 		if err != nil {
 			return err
 		}

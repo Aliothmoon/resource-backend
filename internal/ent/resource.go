@@ -16,13 +16,11 @@ import (
 type Resource struct {
 	config `json:"-"`
 	// ID of the ent.
-	ID int `json:"id,omitempty"`
+	ID string `json:"id,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
 	// Description holds the value of the "description" field.
 	Description string `json:"description,omitempty"`
-	// LatestVersion holds the value of the "latest_version" field.
-	LatestVersion string `json:"latest_version,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -35,9 +33,11 @@ type Resource struct {
 type ResourceEdges struct {
 	// Versions holds the value of the versions edge.
 	Versions []*Version `json:"versions,omitempty"`
+	// LatestVersions holds the value of the latest_versions edge.
+	LatestVersions []*LatestVersion `json:"latest_versions,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [2]bool
 }
 
 // VersionsOrErr returns the Versions value or an error if the edge
@@ -49,14 +49,21 @@ func (e ResourceEdges) VersionsOrErr() ([]*Version, error) {
 	return nil, &NotLoadedError{edge: "versions"}
 }
 
+// LatestVersionsOrErr returns the LatestVersions value or an error if the edge
+// was not loaded in eager-loading.
+func (e ResourceEdges) LatestVersionsOrErr() ([]*LatestVersion, error) {
+	if e.loadedTypes[1] {
+		return e.LatestVersions, nil
+	}
+	return nil, &NotLoadedError{edge: "latest_versions"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*Resource) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case resource.FieldID:
-			values[i] = new(sql.NullInt64)
-		case resource.FieldName, resource.FieldDescription, resource.FieldLatestVersion:
+		case resource.FieldID, resource.FieldName, resource.FieldDescription:
 			values[i] = new(sql.NullString)
 		case resource.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -76,11 +83,11 @@ func (r *Resource) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case resource.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value.Valid {
+				r.ID = value.String
 			}
-			r.ID = int(value.Int64)
 		case resource.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
@@ -92,12 +99,6 @@ func (r *Resource) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field description", values[i])
 			} else if value.Valid {
 				r.Description = value.String
-			}
-		case resource.FieldLatestVersion:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field latest_version", values[i])
-			} else if value.Valid {
-				r.LatestVersion = value.String
 			}
 		case resource.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -121,6 +122,11 @@ func (r *Resource) Value(name string) (ent.Value, error) {
 // QueryVersions queries the "versions" edge of the Resource entity.
 func (r *Resource) QueryVersions() *VersionQuery {
 	return NewResourceClient(r.config).QueryVersions(r)
+}
+
+// QueryLatestVersions queries the "latest_versions" edge of the Resource entity.
+func (r *Resource) QueryLatestVersions() *LatestVersionQuery {
+	return NewResourceClient(r.config).QueryLatestVersions(r)
 }
 
 // Update returns a builder for updating this Resource.
@@ -151,9 +157,6 @@ func (r *Resource) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("description=")
 	builder.WriteString(r.Description)
-	builder.WriteString(", ")
-	builder.WriteString("latest_version=")
-	builder.WriteString(r.LatestVersion)
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(r.CreatedAt.Format(time.ANSIC))

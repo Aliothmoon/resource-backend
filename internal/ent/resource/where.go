@@ -11,48 +11,58 @@ import (
 )
 
 // ID filters vertices based on their ID field.
-func ID(id int) predicate.Resource {
+func ID(id string) predicate.Resource {
 	return predicate.Resource(sql.FieldEQ(FieldID, id))
 }
 
 // IDEQ applies the EQ predicate on the ID field.
-func IDEQ(id int) predicate.Resource {
+func IDEQ(id string) predicate.Resource {
 	return predicate.Resource(sql.FieldEQ(FieldID, id))
 }
 
 // IDNEQ applies the NEQ predicate on the ID field.
-func IDNEQ(id int) predicate.Resource {
+func IDNEQ(id string) predicate.Resource {
 	return predicate.Resource(sql.FieldNEQ(FieldID, id))
 }
 
 // IDIn applies the In predicate on the ID field.
-func IDIn(ids ...int) predicate.Resource {
+func IDIn(ids ...string) predicate.Resource {
 	return predicate.Resource(sql.FieldIn(FieldID, ids...))
 }
 
 // IDNotIn applies the NotIn predicate on the ID field.
-func IDNotIn(ids ...int) predicate.Resource {
+func IDNotIn(ids ...string) predicate.Resource {
 	return predicate.Resource(sql.FieldNotIn(FieldID, ids...))
 }
 
 // IDGT applies the GT predicate on the ID field.
-func IDGT(id int) predicate.Resource {
+func IDGT(id string) predicate.Resource {
 	return predicate.Resource(sql.FieldGT(FieldID, id))
 }
 
 // IDGTE applies the GTE predicate on the ID field.
-func IDGTE(id int) predicate.Resource {
+func IDGTE(id string) predicate.Resource {
 	return predicate.Resource(sql.FieldGTE(FieldID, id))
 }
 
 // IDLT applies the LT predicate on the ID field.
-func IDLT(id int) predicate.Resource {
+func IDLT(id string) predicate.Resource {
 	return predicate.Resource(sql.FieldLT(FieldID, id))
 }
 
 // IDLTE applies the LTE predicate on the ID field.
-func IDLTE(id int) predicate.Resource {
+func IDLTE(id string) predicate.Resource {
 	return predicate.Resource(sql.FieldLTE(FieldID, id))
+}
+
+// IDEqualFold applies the EqualFold predicate on the ID field.
+func IDEqualFold(id string) predicate.Resource {
+	return predicate.Resource(sql.FieldEqualFold(FieldID, id))
+}
+
+// IDContainsFold applies the ContainsFold predicate on the ID field.
+func IDContainsFold(id string) predicate.Resource {
+	return predicate.Resource(sql.FieldContainsFold(FieldID, id))
 }
 
 // Name applies equality check predicate on the "name" field. It's identical to NameEQ.
@@ -63,11 +73,6 @@ func Name(v string) predicate.Resource {
 // Description applies equality check predicate on the "description" field. It's identical to DescriptionEQ.
 func Description(v string) predicate.Resource {
 	return predicate.Resource(sql.FieldEQ(FieldDescription, v))
-}
-
-// LatestVersion applies equality check predicate on the "latest_version" field. It's identical to LatestVersionEQ.
-func LatestVersion(v string) predicate.Resource {
-	return predicate.Resource(sql.FieldEQ(FieldLatestVersion, v))
 }
 
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
@@ -205,81 +210,6 @@ func DescriptionContainsFold(v string) predicate.Resource {
 	return predicate.Resource(sql.FieldContainsFold(FieldDescription, v))
 }
 
-// LatestVersionEQ applies the EQ predicate on the "latest_version" field.
-func LatestVersionEQ(v string) predicate.Resource {
-	return predicate.Resource(sql.FieldEQ(FieldLatestVersion, v))
-}
-
-// LatestVersionNEQ applies the NEQ predicate on the "latest_version" field.
-func LatestVersionNEQ(v string) predicate.Resource {
-	return predicate.Resource(sql.FieldNEQ(FieldLatestVersion, v))
-}
-
-// LatestVersionIn applies the In predicate on the "latest_version" field.
-func LatestVersionIn(vs ...string) predicate.Resource {
-	return predicate.Resource(sql.FieldIn(FieldLatestVersion, vs...))
-}
-
-// LatestVersionNotIn applies the NotIn predicate on the "latest_version" field.
-func LatestVersionNotIn(vs ...string) predicate.Resource {
-	return predicate.Resource(sql.FieldNotIn(FieldLatestVersion, vs...))
-}
-
-// LatestVersionGT applies the GT predicate on the "latest_version" field.
-func LatestVersionGT(v string) predicate.Resource {
-	return predicate.Resource(sql.FieldGT(FieldLatestVersion, v))
-}
-
-// LatestVersionGTE applies the GTE predicate on the "latest_version" field.
-func LatestVersionGTE(v string) predicate.Resource {
-	return predicate.Resource(sql.FieldGTE(FieldLatestVersion, v))
-}
-
-// LatestVersionLT applies the LT predicate on the "latest_version" field.
-func LatestVersionLT(v string) predicate.Resource {
-	return predicate.Resource(sql.FieldLT(FieldLatestVersion, v))
-}
-
-// LatestVersionLTE applies the LTE predicate on the "latest_version" field.
-func LatestVersionLTE(v string) predicate.Resource {
-	return predicate.Resource(sql.FieldLTE(FieldLatestVersion, v))
-}
-
-// LatestVersionContains applies the Contains predicate on the "latest_version" field.
-func LatestVersionContains(v string) predicate.Resource {
-	return predicate.Resource(sql.FieldContains(FieldLatestVersion, v))
-}
-
-// LatestVersionHasPrefix applies the HasPrefix predicate on the "latest_version" field.
-func LatestVersionHasPrefix(v string) predicate.Resource {
-	return predicate.Resource(sql.FieldHasPrefix(FieldLatestVersion, v))
-}
-
-// LatestVersionHasSuffix applies the HasSuffix predicate on the "latest_version" field.
-func LatestVersionHasSuffix(v string) predicate.Resource {
-	return predicate.Resource(sql.FieldHasSuffix(FieldLatestVersion, v))
-}
-
-// LatestVersionIsNil applies the IsNil predicate on the "latest_version" field.
-func LatestVersionIsNil() predicate.Resource {
-	return predicate.Resource(sql.FieldIsNull(FieldLatestVersion))
-}
-
-// LatestVersionNotNil applies the NotNil predicate on the "latest_version" field.
-func LatestVersionNotNil() predicate.Resource {
-	return predicate.Resource(sql.FieldNotNull(FieldLatestVersion))
-}
-
-// LatestVersionEqualFold applies the EqualFold predicate on the "latest_version" field.
-func LatestVersionEqualFold(v string) predicate.Resource {
-	return predicate.Resource(sql.FieldEqualFold(FieldLatestVersion, v))
-}
-
-// LatestVersionContainsFold applies the ContainsFold predicate on the "latest_version" field.
-func LatestVersionContainsFold(v string) predicate.Resource {
-	return predicate.Resource(sql.FieldContainsFold(FieldLatestVersion, v))
-}
-
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.Resource {
 	return predicate.Resource(sql.FieldEQ(FieldCreatedAt, v))
@@ -335,6 +265,29 @@ func HasVersions() predicate.Resource {
 func HasVersionsWith(preds ...predicate.Version) predicate.Resource {
 	return predicate.Resource(func(s *sql.Selector) {
 		step := newVersionsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasLatestVersions applies the HasEdge predicate on the "latest_versions" edge.
+func HasLatestVersions() predicate.Resource {
+	return predicate.Resource(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, LatestVersionsTable, LatestVersionsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasLatestVersionsWith applies the HasEdge predicate on the "latest_versions" edge with a given conditions (other predicates).
+func HasLatestVersionsWith(preds ...predicate.LatestVersion) predicate.Resource {
+	return predicate.Resource(func(s *sql.Selector) {
+		step := newLatestVersionsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)
