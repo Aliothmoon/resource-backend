@@ -11,10 +11,10 @@ import (
 	"github.com/MirrorChyan/resource-backend/internal/ent"
 	"github.com/MirrorChyan/resource-backend/internal/handler"
 	"github.com/MirrorChyan/resource-backend/internal/logic"
+	"github.com/MirrorChyan/resource-backend/internal/logic/dispense"
 	"github.com/MirrorChyan/resource-backend/internal/repo"
 	"github.com/MirrorChyan/resource-backend/internal/vercomp"
 	"github.com/go-redsync/redsync/v4"
-	"github.com/google/wire"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
@@ -31,29 +31,28 @@ func NewHandlerSet(logger *zap.Logger, db *ent.Client, rdb *redis.Client, redsyn
 	latestVersion := repo.NewLatestVersion(db)
 	latestVersionLogic := logic.NewLatestVersionLogic(logger, latestVersion, verComparator)
 	storageLogic := logic.NewStorageLogic(logger, storage)
-	versionLogic := logic.NewVersionLogic(logger, repoRepo, version, storage, latestVersionLogic, storageLogic, rdb, redsync2, cg)
+	distributeLogic := dispense.NewDistributeLogic(logger, rdb)
+	versionLogic := logic.NewVersionLogic(logger, repoRepo, version, storage, latestVersionLogic, storageLogic, rdb, redsync2, cg, distributeLogic)
 	versionHandler := handler.NewVersionHandler(logger, resourceLogic, versionLogic, verComparator)
-	handlerSet := provideHandlerSet(resourceHandler, versionHandler)
+	storageHandler := handler.NewStorageHandler(logger, resourceLogic, versionLogic, storageLogic)
+	metricsHandler := handler.NewMetricsHandler()
+	heathCheckHandler := handler.NewHeathCheckHandlerHandler()
+	handlerSet := &HandlerSet{
+		ResourceHandler:   resourceHandler,
+		VersionHandler:    versionHandler,
+		StorageHandler:    storageHandler,
+		MetricsHandler:    metricsHandler,
+		HeathCheckHandler: heathCheckHandler,
+	}
 	return handlerSet
 }
 
 // wire.go:
 
-var repoProviderSet = wire.NewSet(repo.NewRepo, repo.NewResource, repo.NewVersion, repo.NewLatestVersion, repo.NewStorage)
-
-var logicProviderSet = wire.NewSet(logic.NewResourceLogic, logic.NewVersionLogic, logic.NewLatestVersionLogic, logic.NewStorageLogic)
-
-var handlerProviderSet = wire.NewSet(handler.NewResourceHandler, handler.NewVersionHandler, handler.NewMetricsHandler)
-
 type HandlerSet struct {
-	ResourceHandler *handler.ResourceHandler
-	VersionHandler  *handler.VersionHandler
-	MetricsHandler  *handler.MetricsHandler
-}
-
-func provideHandlerSet(resourceHandler *handler.ResourceHandler, versionHandler *handler.VersionHandler) *HandlerSet {
-	return &HandlerSet{
-		ResourceHandler: resourceHandler,
-		VersionHandler:  versionHandler,
-	}
+	ResourceHandler   *handler.ResourceHandler
+	VersionHandler    *handler.VersionHandler
+	StorageHandler    *handler.StorageHandler
+	MetricsHandler    *handler.MetricsHandler
+	HeathCheckHandler *handler.HeathCheckHandler
 }

@@ -3,16 +3,15 @@ package model
 import "github.com/MirrorChyan/resource-backend/internal/ent"
 
 type ValidateCDKRequest struct {
-	CDK             string `json:"cdk"`
-	SpecificationID string `json:"specificationId,omitempty"`
-	Source          string `json:"source"`
-	UA              string `json:"ua"`
+	CDK      string `json:"cdk"`
+	Resource string `json:"resource"`
+	UA       string `json:"ua"`
+	IP       string `json:"ip"`
 }
 
 type ValidateCDKResponse struct {
 	Code int    `json:"code"`
 	Msg  string `json:"msg"`
-	Data bool   `json:"data"`
 }
 
 type ValidateUploaderResponse struct {
@@ -60,4 +59,17 @@ type ActualUpdateProcessInfo struct {
 type UpdatePackage struct {
 	Path   string `json:"path"`
 	SHA256 string `json:"sha256"`
+}
+
+type UpdateInfo struct {
+	RelPath    string
+	SHA256     string
+	UpdateType string
+}
+
+type DistributeInfo struct {
+	Region   string `json:"region"`
+	CDK      string `json:"cdk"`
+	RelPath  string `json:"rel_path"`
+	Resource string `json:"resource"`
 }

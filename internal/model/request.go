@@ -7,12 +7,12 @@ type CreateResourceRequest struct {
 }
 
 type GetLatestVersionRequest struct {
+	ResourceID     string
 	CurrentVersion string `query:"current_version"`
 	OS             string `query:"os"`
 	Arch           string `query:"arch"`
 	Channel        string `query:"channel"`
 	CDK            string `query:"cdk"`
-	SpID           string `query:"sp_id"`
 	UserAgent      string `query:"user_agent"`
 }
 
@@ -24,4 +24,8 @@ type UpdateReleaseNoteDetailRequest struct {
 type UpdateReleaseNoteSummaryRequest struct {
 	VersionName string `json:"version_name"`
 	Content     string `json:"content"`
+}
+
+type ClearOldStorageRequest struct {
+	Channel string `json:"channel"`
 }

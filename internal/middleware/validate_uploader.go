@@ -13,6 +13,10 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	resourceKey = "rid"
+)
+
 func NewValidateUploader() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		token := c.Get("Authorization")
@@ -21,9 +25,11 @@ func NewValidateUploader() fiber.Handler {
 			return c.Status(fiber.StatusUnauthorized).JSON(resp)
 		}
 
-		var conf = config.CFG
+		var conf = config.GConfig
 
-		url := fmt.Sprintf("%s?token=%s", conf.Auth.UploaderValidationURL, token)
+		rid := c.Params(resourceKey)
+
+		url := fmt.Sprintf("%s?token=%s&rid=%s", conf.Auth.UploaderValidationURL, token, rid)
 		resp, err := http.Post(url, "application/json", nil)
 		if err != nil {
 			zap.L().Error("Failed to request uploader validation",
@@ -65,7 +71,7 @@ func NewValidateUploader() fiber.Handler {
 				zap.Int("code", res.Code),
 				zap.String("msg", res.Msg),
 			)
-			resp := response.BusinessError("invalid authorization token")
+			resp := response.BusinessError(res.Msg)
 			return c.Status(fiber.StatusUnauthorized).JSON(resp)
 		} else if res.Code == -1 {
 			zap.L().Error("Uploader validation failed",
