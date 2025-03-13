@@ -12,28 +12,30 @@ import (
 	"github.com/MirrorChyan/resource-backend/internal/handler"
 	"github.com/MirrorChyan/resource-backend/internal/logic"
 	"github.com/MirrorChyan/resource-backend/internal/logic/dispense"
+	"github.com/MirrorChyan/resource-backend/internal/pkg/vercomp"
 	"github.com/MirrorChyan/resource-backend/internal/repo"
-	"github.com/MirrorChyan/resource-backend/internal/vercomp"
+	"github.com/MirrorChyan/resource-backend/internal/tasks"
 	"github.com/go-redsync/redsync/v4"
+	"github.com/google/wire"
+	"github.com/jmoiron/sqlx"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
 // Injectors from wire.go:
 
-func NewHandlerSet(logger *zap.Logger, db *ent.Client, rdb *redis.Client, redsync2 *redsync.Redsync, cg *cache.VersionCacheGroup, verComparator *vercomp.VersionComparator) *HandlerSet {
-	resource := repo.NewResource(db)
-	resourceLogic := logic.NewResourceLogic(logger, resource)
+func NewHandlerSet(logger *zap.Logger, client *ent.Client, db *sqlx.DB, redisClient *redis.Client, redsyncRedsync *redsync.Redsync, taskQueue *tasks.TaskQueue, multiCacheGroup *cache.MultiCacheGroup, versionComparator *vercomp.VersionComparator) *HandlerSet {
+	repoRepo := repo.NewRepo(client, db)
+	resource := repo.NewResource(repoRepo)
+	resourceLogic := logic.NewResourceLogic(logger, resource, multiCacheGroup)
 	resourceHandler := handler.NewResourceHandler(logger, resourceLogic)
-	repoRepo := repo.NewRepo(db)
-	version := repo.NewVersion(db)
-	storage := repo.NewStorage(db)
-	latestVersion := repo.NewLatestVersion(db)
-	latestVersionLogic := logic.NewLatestVersionLogic(logger, latestVersion, verComparator)
-	storageLogic := logic.NewStorageLogic(logger, storage)
-	distributeLogic := dispense.NewDistributeLogic(logger, rdb)
-	versionLogic := logic.NewVersionLogic(logger, repoRepo, version, storage, latestVersionLogic, storageLogic, rdb, redsync2, cg, distributeLogic)
-	versionHandler := handler.NewVersionHandler(logger, resourceLogic, versionLogic, verComparator)
+	version := repo.NewVersion(repoRepo)
+	rawQuery := repo.NewRawQuery(repoRepo)
+	distributeLogic := dispense.NewDistributeLogic(logger, redisClient)
+	storage := repo.NewStorage(repoRepo)
+	storageLogic := logic.NewStorageLogic(logger, storage, resource, rawQuery)
+	versionLogic := logic.NewVersionLogic(logger, repoRepo, version, rawQuery, versionComparator, distributeLogic, resourceLogic, storageLogic, redisClient, redsyncRedsync, taskQueue, multiCacheGroup)
+	versionHandler := handler.NewVersionHandler(logger, resourceLogic, versionLogic, versionComparator)
 	storageHandler := handler.NewStorageHandler(logger, resourceLogic, versionLogic, storageLogic)
 	metricsHandler := handler.NewMetricsHandler()
 	heathCheckHandler := handler.NewHeathCheckHandlerHandler()
@@ -56,3 +58,5 @@ type HandlerSet struct {
 	MetricsHandler    *handler.MetricsHandler
 	HeathCheckHandler *handler.HeathCheckHandler
 }
+
+var GlobalSet = wire.NewSet(repo.Provider, logic.Provider)

@@ -10,6 +10,7 @@ type (
 		Database DatabaseConfig `mapstructure:"database"`
 		Auth     AuthConfig     `mapstructure:"auth"`
 		Redis    RedisConfig    `mapstructure:"redis"`
+		OSS      OSSConfig      `mapstructure:"oss"`
 		Extra    ExtraConfig    `mapstructure:"extra"`
 	}
 	InstanceConfig struct {
@@ -31,7 +32,7 @@ type (
 	}
 	DatabaseConfig struct {
 		Host     string `mapstructure:"host"`
-		Port     string `mapstructure:"port"`
+		Port     int    `mapstructure:"port"`
 		Username string `mapstructure:"username"`
 		Password string `mapstructure:"password"`
 		Name     string `mapstructure:"name"`
@@ -42,6 +43,7 @@ type (
 		Password string `mapstructure:"password"`
 		Name     string `mapstructure:"name"`
 		DB       int    `mapstructure:"db"`
+		AsynqDB  int    `mapstructure:"asynq_db"`
 	}
 	ExtraConfig struct {
 		DownloadPrefixInfo      map[string][]RobinServer `mapstructure:"download_prefix_info"`
@@ -50,6 +52,7 @@ type (
 		DownloadRedirectPrefix  string                   `mapstructure:"download_redirect_prefix"`
 		SqlDebugMode            bool                     `mapstructure:"sql_debug_mode"`
 		CreateNewVersionWebhook string                   `mapstructure:"create_new_version_webhook"`
+		PurgeErrorWebhook       string                   `mapstructure:"purge_error_webhook"`
 		CdnPrefix               string                   `mapstructure:"cdn_prefix"`
 		DistributeCdnRatio      int                      `mapstructure:"distribute_cdn_ratio"`
 		DistributeCdnRegion     []string                 `mapstructure:"distribute_cdn_region"`
@@ -66,5 +69,13 @@ type (
 		PrivateKey            string `mapstructure:"private_key"`
 		UploaderValidationURL string `mapstructure:"uploader_validation_url"`
 		CDKValidationURL      string `mapstructure:"cdk_validation_url"`
+	}
+	OSSConfig struct {
+		ExternalHost string `mapstructure:"external_host"`
+		Region       string `mapstructure:"region"`
+		Endpoint     string `mapstructure:"endpoint"`
+		AccessKey    string `mapstructure:"access_key"`
+		SecretKey    string `mapstructure:"secret_key"`
+		Bucket       string `mapstructure:"bucket"`
 	}
 )

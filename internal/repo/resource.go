@@ -8,19 +8,27 @@ import (
 )
 
 type Resource struct {
-	db *ent.Client
+	*Repo
 }
 
-func NewResource(db *ent.Client) *Resource {
+func NewResource(db *Repo) *Resource {
 	return &Resource{
-		db: db,
+		Repo: db,
 	}
 }
 
-func (r *Resource) CreateResource(ctx context.Context, resID, name, description string) (*ent.Resource, error) {
+func (r *Resource) FindUpdateTypeById(ctx context.Context, id string) (*ent.Resource, error) {
+	return r.db.Resource.Query().
+		Select(resource.FieldUpdateType).
+		Where(resource.ID(id)).
+		First(ctx)
+}
+
+func (r *Resource) CreateResource(ctx context.Context, resID, name, description, updateType string) (*ent.Resource, error) {
 	return r.db.Resource.Create().
 		SetID(resID).
 		SetName(name).
+		SetUpdateType(updateType).
 		SetDescription(description).
 		Save(ctx)
 }
@@ -29,4 +37,8 @@ func (r *Resource) CheckResourceExistsByID(ctx context.Context, id string) (bool
 	return r.db.Resource.Query().
 		Where(resource.ID(id)).
 		Exist(ctx)
+}
+
+func (r *Resource) GetFullResource(ctx context.Context) ([]*ent.Resource, error) {
+	return r.db.Resource.Query().All(ctx)
 }

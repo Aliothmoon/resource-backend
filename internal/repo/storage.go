@@ -2,31 +2,28 @@ package repo
 
 import (
 	"context"
-
 	"github.com/MirrorChyan/resource-backend/internal/ent"
-	"github.com/MirrorChyan/resource-backend/internal/ent/resource"
 	"github.com/MirrorChyan/resource-backend/internal/ent/storage"
 	"github.com/MirrorChyan/resource-backend/internal/ent/version"
 )
 
 type Storage struct {
-	db *ent.Client
+	*Repo
 }
 
-func NewStorage(db *ent.Client) *Storage {
+func NewStorage(db *Repo) *Storage {
 	return &Storage{
-		db: db,
+		Repo: db,
 	}
 }
 
-func (r *Storage) CreateFullUpdateStorage(ctx context.Context, tx *ent.Tx, verID int, os, arch, fullUpdatePath, packageSHA256, resourcePath string, fileHashes map[string]string) (*ent.Storage, error) {
-	return tx.Storage.Create().
+func (r *Storage) CreateFullUpdateStorage(ctx context.Context, verID int, os, arch, fullUpdatePath, packageSHA256 string, fileHashes map[string]string) (*ent.Storage, error) {
+	return r.db.Storage.Create().
 		SetUpdateType(storage.UpdateTypeFull).
 		SetOs(os).
 		SetArch(arch).
 		SetPackagePath(fullUpdatePath).
 		SetPackageHashSha256(packageSHA256).
-		SetResourcePath(resourcePath).
 		SetFileHashes(fileHashes).
 		SetVersionID(verID).
 		Save(ctx)
@@ -65,9 +62,12 @@ func (r *Storage) GetFullUpdateStorage(ctx context.Context, verID int, os, arch 
 		Only(ctx)
 }
 
+func (r *Storage) UpdateStoragePackageHash(ctx context.Context, id int, hash string) error {
+	return r.db.Storage.UpdateOneID(id).SetPackageHashSha256(hash).Exec(ctx)
+}
+
 func (r *Storage) GetIncrementalUpdateStorage(ctx context.Context, verID, oldVerID int, os, arch string) (*ent.Storage, error) {
 	return r.db.Storage.Query().
-		Select(storage.FieldPackagePath).
 		Where(
 			storage.HasVersionWith(version.ID(verID)),
 			storage.HasOldVersionWith(version.ID(oldVerID)),
@@ -78,64 +78,24 @@ func (r *Storage) GetIncrementalUpdateStorage(ctx context.Context, verID, oldVer
 		Only(ctx)
 }
 
-func (r *Storage) GetOldFullUpdateStorages(ctx context.Context, resID string, channel version.Channel, latestVerID int) ([]*ent.Storage, error) {
-	return r.db.Storage.Query().
-		Where(
-			storage.HasVersionWith(
-				version.HasResourceWith(resource.ID(resID)),
-				version.ChannelEQ(channel),
-				version.IDNEQ(latestVerID),
-			),
-			storage.UpdateTypeEQ(storage.UpdateTypeFull),
-		).
-		All(ctx)
-}
-
-func (r *Storage) ClearOldFullUpdateStorages(ctx context.Context, resID string, channel version.Channel, latestVerID int) error {
-	err := r.db.Storage.Update().
-		Where(
-			storage.HasVersionWith(
-				version.HasResourceWith(resource.ID(resID)),
-				version.ChannelEQ(channel),
-				version.IDNEQ(latestVerID),
-			),
-			storage.UpdateTypeEQ(storage.UpdateTypeFull),
-		).
-		ClearPackagePath().
-		ClearResourcePath().
+func (r *Storage) PurgeStorageInfo(ctx context.Context, storageId int) error {
+	val, err := r.db.Storage.Query().
+		Where(storage.IDEQ(storageId)).
+		First(ctx)
+	if err != nil {
+		return err
+	}
+	vid := val.VersionStorages
+	err = r.db.Storage.Update().Where(storage.HasVersionWith(version.ID(vid))).
+		SetNillablePackagePath(nil).
+		SetNillableResourcePath(nil).
 		Exec(ctx)
-	return err
-}
+	if err != nil {
+		return err
+	}
 
-func (r *Storage) GetOldIncrementalUpdateStorages(ctx context.Context, resID string, channel version.Channel, latestVerID int) ([]*ent.Storage, error) {
-	return r.db.Storage.Query().
-		Where(
-			storage.HasVersionWith(
-				version.HasResourceWith(resource.ID(resID)),
-				version.ChannelEQ(channel),
-				version.IDNEQ(latestVerID),
-			),
-			storage.UpdateTypeEQ(storage.UpdateTypeIncremental),
-		).
-		All(ctx)
-}
-
-func (r *Storage) DeleteOldIncrementalUpdateStorages(ctx context.Context, resID string, channel version.Channel, latestVerID int) error {
-	_, err := r.db.Storage.Delete().
-		Where(
-			storage.HasVersionWith(
-				version.HasResourceWith(resource.ID(resID)),
-				version.ChannelEQ(channel),
-				version.IDNEQ(latestVerID),
-			),
-			storage.UpdateTypeEQ(storage.UpdateTypeIncremental),
-		).
-		Exec(ctx)
-	return err
-}
-
-func (r *Storage) SetPackageHashSHA256(ctx context.Context, storageID int, packageSHA256 string) error {
-	return r.db.Storage.UpdateOneID(storageID).
-		SetPackageHashSha256(packageSHA256).
+	return r.db.Storage.UpdateOneID(storageId).
+		SetNillablePackagePath(nil).
+		SetNillableResourcePath(nil).
 		Exec(ctx)
 }

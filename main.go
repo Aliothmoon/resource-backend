@@ -4,13 +4,15 @@ import (
 	"context"
 	"fmt"
 
-	_ "github.com/MirrorChyan/resource-backend/internal/banner"
 	"github.com/MirrorChyan/resource-backend/internal/cache"
 	. "github.com/MirrorChyan/resource-backend/internal/config"
 	"github.com/MirrorChyan/resource-backend/internal/db"
 	"github.com/MirrorChyan/resource-backend/internal/ent"
+	"github.com/MirrorChyan/resource-backend/internal/handler"
 	"github.com/MirrorChyan/resource-backend/internal/logger"
-	"github.com/MirrorChyan/resource-backend/internal/vercomp"
+	_ "github.com/MirrorChyan/resource-backend/internal/pkg/banner"
+	"github.com/MirrorChyan/resource-backend/internal/pkg/vercomp"
+	"github.com/MirrorChyan/resource-backend/internal/tasks"
 	"github.com/MirrorChyan/resource-backend/internal/wire"
 	"github.com/bytedance/sonic"
 	"github.com/gofiber/contrib/fiberzap/v2"
@@ -24,8 +26,7 @@ func main() {
 
 	setUpConfigAndLog()
 
-	mysql, err := db.NewDataSource()
-
+	mysql, dx, err := db.LoadDataSource()
 	if err != nil {
 		zap.L().Fatal("failed to connect to database",
 			zap.Error(err),
@@ -46,19 +47,27 @@ func main() {
 
 	// deps
 	var (
-		redis         = db.NewRedis()
-		redSync       = db.NewRedSync(redis)
-		group         = cache.NewVersionCacheGroup(redis)
-		verComparator = vercomp.NewComparator()
-		app           = fiber.New(fiber.Config{
+		redis      = db.NewRedis()
+		queue      = tasks.NewTaskQueue()
+		dl         = db.NewRedSync(redis)
+		group      = cache.NewVersionCacheGroup(redis)
+		comparator = vercomp.NewComparator()
+		app        = fiber.New(fiber.Config{
 			BodyLimit:   BodyLimit,
 			ProxyHeader: fiber.HeaderXForwardedFor,
+
 			JSONEncoder: sonic.Marshal,
 			JSONDecoder: sonic.Unmarshal,
+
+			ErrorHandler: handler.Error,
 		})
 	)
 
-	handlerSet := wire.NewHandlerSet(zap.L(), mysql, redis, redSync, group, verComparator)
+	handlerSet := wire.NewHandlerSet(zap.L(),
+		mysql, dx,
+		redis, dl, queue,
+		group,
+		comparator)
 
 	initRoute(app, handlerSet)
 

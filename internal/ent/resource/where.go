@@ -80,6 +80,11 @@ func CreatedAt(v time.Time) predicate.Resource {
 	return predicate.Resource(sql.FieldEQ(FieldCreatedAt, v))
 }
 
+// UpdateType applies equality check predicate on the "update_type" field. It's identical to UpdateTypeEQ.
+func UpdateType(v string) predicate.Resource {
+	return predicate.Resource(sql.FieldEQ(FieldUpdateType, v))
+}
+
 // NameEQ applies the EQ predicate on the "name" field.
 func NameEQ(v string) predicate.Resource {
 	return predicate.Resource(sql.FieldEQ(FieldName, v))
@@ -250,6 +255,71 @@ func CreatedAtLTE(v time.Time) predicate.Resource {
 	return predicate.Resource(sql.FieldLTE(FieldCreatedAt, v))
 }
 
+// UpdateTypeEQ applies the EQ predicate on the "update_type" field.
+func UpdateTypeEQ(v string) predicate.Resource {
+	return predicate.Resource(sql.FieldEQ(FieldUpdateType, v))
+}
+
+// UpdateTypeNEQ applies the NEQ predicate on the "update_type" field.
+func UpdateTypeNEQ(v string) predicate.Resource {
+	return predicate.Resource(sql.FieldNEQ(FieldUpdateType, v))
+}
+
+// UpdateTypeIn applies the In predicate on the "update_type" field.
+func UpdateTypeIn(vs ...string) predicate.Resource {
+	return predicate.Resource(sql.FieldIn(FieldUpdateType, vs...))
+}
+
+// UpdateTypeNotIn applies the NotIn predicate on the "update_type" field.
+func UpdateTypeNotIn(vs ...string) predicate.Resource {
+	return predicate.Resource(sql.FieldNotIn(FieldUpdateType, vs...))
+}
+
+// UpdateTypeGT applies the GT predicate on the "update_type" field.
+func UpdateTypeGT(v string) predicate.Resource {
+	return predicate.Resource(sql.FieldGT(FieldUpdateType, v))
+}
+
+// UpdateTypeGTE applies the GTE predicate on the "update_type" field.
+func UpdateTypeGTE(v string) predicate.Resource {
+	return predicate.Resource(sql.FieldGTE(FieldUpdateType, v))
+}
+
+// UpdateTypeLT applies the LT predicate on the "update_type" field.
+func UpdateTypeLT(v string) predicate.Resource {
+	return predicate.Resource(sql.FieldLT(FieldUpdateType, v))
+}
+
+// UpdateTypeLTE applies the LTE predicate on the "update_type" field.
+func UpdateTypeLTE(v string) predicate.Resource {
+	return predicate.Resource(sql.FieldLTE(FieldUpdateType, v))
+}
+
+// UpdateTypeContains applies the Contains predicate on the "update_type" field.
+func UpdateTypeContains(v string) predicate.Resource {
+	return predicate.Resource(sql.FieldContains(FieldUpdateType, v))
+}
+
+// UpdateTypeHasPrefix applies the HasPrefix predicate on the "update_type" field.
+func UpdateTypeHasPrefix(v string) predicate.Resource {
+	return predicate.Resource(sql.FieldHasPrefix(FieldUpdateType, v))
+}
+
+// UpdateTypeHasSuffix applies the HasSuffix predicate on the "update_type" field.
+func UpdateTypeHasSuffix(v string) predicate.Resource {
+	return predicate.Resource(sql.FieldHasSuffix(FieldUpdateType, v))
+}
+
+// UpdateTypeEqualFold applies the EqualFold predicate on the "update_type" field.
+func UpdateTypeEqualFold(v string) predicate.Resource {
+	return predicate.Resource(sql.FieldEqualFold(FieldUpdateType, v))
+}
+
+// UpdateTypeContainsFold applies the ContainsFold predicate on the "update_type" field.
+func UpdateTypeContainsFold(v string) predicate.Resource {
+	return predicate.Resource(sql.FieldContainsFold(FieldUpdateType, v))
+}
+
 // HasVersions applies the HasEdge predicate on the "versions" edge.
 func HasVersions() predicate.Resource {
 	return predicate.Resource(func(s *sql.Selector) {
@@ -265,29 +335,6 @@ func HasVersions() predicate.Resource {
 func HasVersionsWith(preds ...predicate.Version) predicate.Resource {
 	return predicate.Resource(func(s *sql.Selector) {
 		step := newVersionsStep()
-		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
-			for _, p := range preds {
-				p(s)
-			}
-		})
-	})
-}
-
-// HasLatestVersions applies the HasEdge predicate on the "latest_versions" edge.
-func HasLatestVersions() predicate.Resource {
-	return predicate.Resource(func(s *sql.Selector) {
-		step := sqlgraph.NewStep(
-			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, LatestVersionsTable, LatestVersionsColumn),
-		)
-		sqlgraph.HasNeighbors(s, step)
-	})
-}
-
-// HasLatestVersionsWith applies the HasEdge predicate on the "latest_versions" edge with a given conditions (other predicates).
-func HasLatestVersionsWith(preds ...predicate.LatestVersion) predicate.Resource {
-	return predicate.Resource(func(s *sql.Selector) {
-		step := newLatestVersionsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

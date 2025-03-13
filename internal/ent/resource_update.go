@@ -11,7 +11,6 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/MirrorChyan/resource-backend/internal/ent/latestversion"
 	"github.com/MirrorChyan/resource-backend/internal/ent/predicate"
 	"github.com/MirrorChyan/resource-backend/internal/ent/resource"
 	"github.com/MirrorChyan/resource-backend/internal/ent/version"
@@ -72,6 +71,20 @@ func (ru *ResourceUpdate) SetNillableCreatedAt(t *time.Time) *ResourceUpdate {
 	return ru
 }
 
+// SetUpdateType sets the "update_type" field.
+func (ru *ResourceUpdate) SetUpdateType(s string) *ResourceUpdate {
+	ru.mutation.SetUpdateType(s)
+	return ru
+}
+
+// SetNillableUpdateType sets the "update_type" field if the given value is not nil.
+func (ru *ResourceUpdate) SetNillableUpdateType(s *string) *ResourceUpdate {
+	if s != nil {
+		ru.SetUpdateType(*s)
+	}
+	return ru
+}
+
 // AddVersionIDs adds the "versions" edge to the Version entity by IDs.
 func (ru *ResourceUpdate) AddVersionIDs(ids ...int) *ResourceUpdate {
 	ru.mutation.AddVersionIDs(ids...)
@@ -85,21 +98,6 @@ func (ru *ResourceUpdate) AddVersions(v ...*Version) *ResourceUpdate {
 		ids[i] = v[i].ID
 	}
 	return ru.AddVersionIDs(ids...)
-}
-
-// AddLatestVersionIDs adds the "latest_versions" edge to the LatestVersion entity by IDs.
-func (ru *ResourceUpdate) AddLatestVersionIDs(ids ...int) *ResourceUpdate {
-	ru.mutation.AddLatestVersionIDs(ids...)
-	return ru
-}
-
-// AddLatestVersions adds the "latest_versions" edges to the LatestVersion entity.
-func (ru *ResourceUpdate) AddLatestVersions(l ...*LatestVersion) *ResourceUpdate {
-	ids := make([]int, len(l))
-	for i := range l {
-		ids[i] = l[i].ID
-	}
-	return ru.AddLatestVersionIDs(ids...)
 }
 
 // Mutation returns the ResourceMutation object of the builder.
@@ -126,27 +124,6 @@ func (ru *ResourceUpdate) RemoveVersions(v ...*Version) *ResourceUpdate {
 		ids[i] = v[i].ID
 	}
 	return ru.RemoveVersionIDs(ids...)
-}
-
-// ClearLatestVersions clears all "latest_versions" edges to the LatestVersion entity.
-func (ru *ResourceUpdate) ClearLatestVersions() *ResourceUpdate {
-	ru.mutation.ClearLatestVersions()
-	return ru
-}
-
-// RemoveLatestVersionIDs removes the "latest_versions" edge to LatestVersion entities by IDs.
-func (ru *ResourceUpdate) RemoveLatestVersionIDs(ids ...int) *ResourceUpdate {
-	ru.mutation.RemoveLatestVersionIDs(ids...)
-	return ru
-}
-
-// RemoveLatestVersions removes "latest_versions" edges to LatestVersion entities.
-func (ru *ResourceUpdate) RemoveLatestVersions(l ...*LatestVersion) *ResourceUpdate {
-	ids := make([]int, len(l))
-	for i := range l {
-		ids[i] = l[i].ID
-	}
-	return ru.RemoveLatestVersionIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -207,6 +184,9 @@ func (ru *ResourceUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if value, ok := ru.mutation.CreatedAt(); ok {
 		_spec.SetField(resource.FieldCreatedAt, field.TypeTime, value)
 	}
+	if value, ok := ru.mutation.UpdateType(); ok {
+		_spec.SetField(resource.FieldUpdateType, field.TypeString, value)
+	}
 	if ru.mutation.VersionsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -245,51 +225,6 @@ func (ru *ResourceUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(version.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
-	if ru.mutation.LatestVersionsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   resource.LatestVersionsTable,
-			Columns: []string{resource.LatestVersionsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(latestversion.FieldID, field.TypeInt),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := ru.mutation.RemovedLatestVersionsIDs(); len(nodes) > 0 && !ru.mutation.LatestVersionsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   resource.LatestVersionsTable,
-			Columns: []string{resource.LatestVersionsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(latestversion.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := ru.mutation.LatestVersionsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   resource.LatestVersionsTable,
-			Columns: []string{resource.LatestVersionsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(latestversion.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -359,6 +294,20 @@ func (ruo *ResourceUpdateOne) SetNillableCreatedAt(t *time.Time) *ResourceUpdate
 	return ruo
 }
 
+// SetUpdateType sets the "update_type" field.
+func (ruo *ResourceUpdateOne) SetUpdateType(s string) *ResourceUpdateOne {
+	ruo.mutation.SetUpdateType(s)
+	return ruo
+}
+
+// SetNillableUpdateType sets the "update_type" field if the given value is not nil.
+func (ruo *ResourceUpdateOne) SetNillableUpdateType(s *string) *ResourceUpdateOne {
+	if s != nil {
+		ruo.SetUpdateType(*s)
+	}
+	return ruo
+}
+
 // AddVersionIDs adds the "versions" edge to the Version entity by IDs.
 func (ruo *ResourceUpdateOne) AddVersionIDs(ids ...int) *ResourceUpdateOne {
 	ruo.mutation.AddVersionIDs(ids...)
@@ -372,21 +321,6 @@ func (ruo *ResourceUpdateOne) AddVersions(v ...*Version) *ResourceUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return ruo.AddVersionIDs(ids...)
-}
-
-// AddLatestVersionIDs adds the "latest_versions" edge to the LatestVersion entity by IDs.
-func (ruo *ResourceUpdateOne) AddLatestVersionIDs(ids ...int) *ResourceUpdateOne {
-	ruo.mutation.AddLatestVersionIDs(ids...)
-	return ruo
-}
-
-// AddLatestVersions adds the "latest_versions" edges to the LatestVersion entity.
-func (ruo *ResourceUpdateOne) AddLatestVersions(l ...*LatestVersion) *ResourceUpdateOne {
-	ids := make([]int, len(l))
-	for i := range l {
-		ids[i] = l[i].ID
-	}
-	return ruo.AddLatestVersionIDs(ids...)
 }
 
 // Mutation returns the ResourceMutation object of the builder.
@@ -413,27 +347,6 @@ func (ruo *ResourceUpdateOne) RemoveVersions(v ...*Version) *ResourceUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return ruo.RemoveVersionIDs(ids...)
-}
-
-// ClearLatestVersions clears all "latest_versions" edges to the LatestVersion entity.
-func (ruo *ResourceUpdateOne) ClearLatestVersions() *ResourceUpdateOne {
-	ruo.mutation.ClearLatestVersions()
-	return ruo
-}
-
-// RemoveLatestVersionIDs removes the "latest_versions" edge to LatestVersion entities by IDs.
-func (ruo *ResourceUpdateOne) RemoveLatestVersionIDs(ids ...int) *ResourceUpdateOne {
-	ruo.mutation.RemoveLatestVersionIDs(ids...)
-	return ruo
-}
-
-// RemoveLatestVersions removes "latest_versions" edges to LatestVersion entities.
-func (ruo *ResourceUpdateOne) RemoveLatestVersions(l ...*LatestVersion) *ResourceUpdateOne {
-	ids := make([]int, len(l))
-	for i := range l {
-		ids[i] = l[i].ID
-	}
-	return ruo.RemoveLatestVersionIDs(ids...)
 }
 
 // Where appends a list predicates to the ResourceUpdate builder.
@@ -524,6 +437,9 @@ func (ruo *ResourceUpdateOne) sqlSave(ctx context.Context) (_node *Resource, err
 	if value, ok := ruo.mutation.CreatedAt(); ok {
 		_spec.SetField(resource.FieldCreatedAt, field.TypeTime, value)
 	}
+	if value, ok := ruo.mutation.UpdateType(); ok {
+		_spec.SetField(resource.FieldUpdateType, field.TypeString, value)
+	}
 	if ruo.mutation.VersionsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -562,51 +478,6 @@ func (ruo *ResourceUpdateOne) sqlSave(ctx context.Context) (_node *Resource, err
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(version.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
-	if ruo.mutation.LatestVersionsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   resource.LatestVersionsTable,
-			Columns: []string{resource.LatestVersionsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(latestversion.FieldID, field.TypeInt),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := ruo.mutation.RemovedLatestVersionsIDs(); len(nodes) > 0 && !ruo.mutation.LatestVersionsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   resource.LatestVersionsTable,
-			Columns: []string{resource.LatestVersionsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(latestversion.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := ruo.mutation.LatestVersionsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   resource.LatestVersionsTable,
-			Columns: []string{resource.LatestVersionsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(latestversion.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

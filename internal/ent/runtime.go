@@ -5,7 +5,6 @@ package ent
 import (
 	"time"
 
-	"github.com/MirrorChyan/resource-backend/internal/ent/latestversion"
 	"github.com/MirrorChyan/resource-backend/internal/ent/resource"
 	"github.com/MirrorChyan/resource-backend/internal/ent/schema"
 	"github.com/MirrorChyan/resource-backend/internal/ent/storage"
@@ -16,14 +15,6 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
-	latestversionFields := schema.LatestVersion{}.Fields()
-	_ = latestversionFields
-	// latestversionDescUpdatedAt is the schema descriptor for updated_at field.
-	latestversionDescUpdatedAt := latestversionFields[1].Descriptor()
-	// latestversion.DefaultUpdatedAt holds the default value on creation for the updated_at field.
-	latestversion.DefaultUpdatedAt = latestversionDescUpdatedAt.Default.(func() time.Time)
-	// latestversion.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
-	latestversion.UpdateDefaultUpdatedAt = latestversionDescUpdatedAt.UpdateDefault.(func() time.Time)
 	resourceFields := schema.Resource{}.Fields()
 	_ = resourceFields
 	// resourceDescName is the schema descriptor for name field.
@@ -34,6 +25,10 @@ func init() {
 	resourceDescCreatedAt := resourceFields[3].Descriptor()
 	// resource.DefaultCreatedAt holds the default value on creation for the created_at field.
 	resource.DefaultCreatedAt = resourceDescCreatedAt.Default.(func() time.Time)
+	// resourceDescUpdateType is the schema descriptor for update_type field.
+	resourceDescUpdateType := resourceFields[4].Descriptor()
+	// resource.DefaultUpdateType holds the default value on creation for the update_type field.
+	resource.DefaultUpdateType = resourceDescUpdateType.Default.(string)
 	// resourceDescID is the schema descriptor for id field.
 	resourceDescID := resourceFields[0].Descriptor()
 	// resource.IDValidator is a validator for the "id" field. It is called by the builders before save.

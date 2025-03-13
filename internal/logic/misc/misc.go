@@ -12,22 +12,36 @@ const (
 )
 
 const (
-	FullUpdateType        = "full"
-	IncrementalUpdateType = "incremental"
-
 	ResourcePrefix = "res"
 
-	ZipSuffix         = ".zip"
-	TarGzSuffix       = ".tar.gz"
-	SpecificSeparator = "$#@"
+	ZipSuffix = ".zip"
+
+	DefaultResourceName = "resource.zip"
 
 	DispensePrefix = "dispense"
 )
 
+const (
+	GenerateTagKey           = "generate"
+	LoadStoreNewVersionKey   = "LoadStoreNewVersionTx"
+	ProcessStoragePendingKey = "ProcessStoragePending"
+)
+
+const (
+	ProcessStorageTask = "storage"
+	DiffTask           = "diff"
+)
+
+const SniffLen = 4
+
 var (
 	StorageInfoNotFound = errors.New("storage info not found")
 
+	NotAllowedFileType = errors.New("not allowed file type")
+
 	ResourceLimitError = errors.New("your cdkey has reached the most downloads today")
+
+	ResourceNotFound = errors.New("resource not found")
 )
 
 type RemoteError string
@@ -94,7 +108,10 @@ var (
 		// alpha
 		"alpha": "alpha",
 	}
-	AllChannel = []string{"stable", "beta", "alpha"}
+
+	TotalChannel = []string{"stable", "beta", "alpha"}
+	TotalOs      = []string{"", "windows", "linux", "darwin", "android"}
+	TotalArch    = []string{"", "386", "arm64", "amd64", "arm"}
 )
 
 var LIT = &sync.Map{}
